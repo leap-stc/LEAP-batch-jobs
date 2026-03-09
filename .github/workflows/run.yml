@@ -49,9 +49,11 @@ jobs:
         with:
           workload_identity_provider: 'projects/893029493037/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
           service_account: 'skypilot-v1@leap-pangeo.iam.gserviceaccount.com'
-          service_account_impersonation: 'skypilot-v1@leap-pangeo.iam.gserviceaccount.com'
+          # Force the action to generate a standard credentials file 
+          # without extra impersonation layers
+          create_credentials_file: true
+          export_environment_variables: true
 
-          
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
