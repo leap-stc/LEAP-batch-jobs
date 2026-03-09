@@ -52,16 +52,16 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+
+        
       - name: Launch job
         id: launch
         run: |
-
           uv run sky check gcp
-
-          
           CLUSTER_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
           DISK_ARG=""
-          if [ "${{ inputs.disk_size_gb }}" != "none" ]; then
+          # Ensure we only add the flag if the input is a number
+          if [[ "${{ inputs.disk_size_gb }}" =~ ^[0-9]+$ ]]; then
             DISK_ARG="--disk-size ${{ inputs.disk_size_gb }}"
           fi
           cd batch
