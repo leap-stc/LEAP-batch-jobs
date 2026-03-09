@@ -1,0 +1,76 @@
+name: Run Batch Job
+
+on:
+  workflow_dispatch:
+    inputs:
+      instance_type:
+        description: 'GCP instance type'
+        required: true
+        default: 'e2-standard-4'
+        type: choice
+        options:
+          - n4-standard-4
+          - n4-standard-8
+          - n4-standard-16
+          - n4-highmem-16
+          - n4-highmem-32
+
+      disk_size_gb:
+        description: 'Attached disk size in GB (none = no extra disk). Only if you need to cache data locally before writing to GCP.'
+        required: true
+        default: 'none'
+        type: choice
+        options:
+          - 'none'
+          - '50'
+          - '100'
+          - '200'
+          - '500'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Launch job
+        id: launch
+        run: |
+          CLUSTER_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
+          DISK_ARG=""
+          if [ "${{ inputs.disk_size_gb }}" != "none" ]; then
+            DISK_ARG="--disk-size ${{ inputs.disk_size_gb }}"
+          fi
+          cd batch
+          uv run sky launch -y -c "$CLUSTER_NAME" \
+            --down \
+            --instance-type ${{ inputs.instance_type }} \
+            $DISK_ARG \
+            config.yml
+
+      - name: Summary
+        if: always()
+        run: |
+          STATUS="${{ steps.launch.outcome }}"
+          if [ "$STATUS" = "success" ]; then
+            echo "### Job completed" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### job failed" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          DISK="${{ inputs.disk_size_gb }}"
+          echo "| Instance | \`${{ inputs.instance_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Disk | \`${DISK}\` |" >> "$GITHUB_STEP_SUMMARY"
