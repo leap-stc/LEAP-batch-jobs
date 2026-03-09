@@ -1,0 +1,24 @@
+name: batch
+
+resources:
+  cloud: gcp
+  region: us-central1
+  instance_type: n2-standard-8
+  use_spot: false
+  # disk_size: 100
+  autostop:
+    idle_minutes: 5
+    down: true
+
+workdir: .
+
+setup: |
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  source $HOME/.local/bin/env
+  uv sync --frozen
+
+run: |
+  source $HOME/.local/bin/env
+  echo "Starting batch job"
+  uv run python batch/batch.py
+  echo "Job completed"
