@@ -33,7 +33,7 @@ jobs:
     permissions:
       contents: 'read'
       id-token: 'write'
-      
+
     steps:
       - uses: actions/checkout@v5
 
@@ -55,6 +55,10 @@ jobs:
       - name: Launch job
         id: launch
         run: |
+
+          uv run sky check gcp
+
+          
           CLUSTER_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
           DISK_ARG=""
           if [ "${{ inputs.disk_size_gb }}" != "none" ]; then
