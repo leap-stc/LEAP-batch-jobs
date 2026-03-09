@@ -68,12 +68,11 @@ jobs:
           if [[ "${{ inputs.disk_size_gb }}" =~ ^[0-9]+$ ]]; then
             DISK_ARG="--disk-size ${{ inputs.disk_size_gb }}"
           fi
-          cd batch
           uv run sky launch -y -c "$CLUSTER_NAME" \
             --down \
             --instance-type ${{ inputs.instance_type }} \
             $DISK_ARG \
-            config.yml
+            batch/config.yml
 
       - name: Summary
         if: always()
