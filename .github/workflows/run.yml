@@ -9,11 +9,12 @@ on:
         type: string
 
       instance_type:
-        description: 'GCP instance type'
+        description: 'GCP instance type (overrides config.yml)'
         required: true
-        default: 'e2-standard-4'
+        default: 'from config'
         type: choice
         options:
+          - 'from config'
           - n4-standard-4
           - n4-standard-8
           - n4-standard-16
@@ -61,22 +62,40 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
 
+      - name: SSH tunnel instructions
+        run: |
+          CLUSTER_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
+          echo "### Dask Dashboard" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Once the cluster is provisioned and the script starts, run:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "sky ssh ${CLUSTER_NAME} -- -L 8787:localhost:8787" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "Then open http://localhost:8787 in your browser." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Launch job
         id: launch
         run: |
           uv run sky check gcp
           CLUSTER_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
           DISK_ARG=""
-          # Ensure we only add the flag if the input is a number
+          INSTANCE_ARG=""
           if [[ "${{ inputs.disk_size_gb }}" =~ ^[0-9]+$ ]]; then
             DISK_ARG="--disk-size ${{ inputs.disk_size_gb }}"
           fi
+          if [[ "${{ inputs.instance_type }}" != "from config" ]]; then
+            INSTANCE_ARG="--instance-type ${{ inputs.instance_type }}"
+          fi
           cd "${{ inputs.job }}"
+          START_TIME=$(date +%s)
           uv run sky launch -y -c "$CLUSTER_NAME" \
             --down \
-            --instance-type ${{ inputs.instance_type }} \
+            $INSTANCE_ARG \
             $DISK_ARG \
             config.yml
+          END_TIME=$(date +%s)
+          DURATION=$(( END_TIME - START_TIME ))
+          echo "duration=$DURATION" >> "$GITHUB_OUTPUT"
 
       - name: Summary
         if: always()
@@ -85,9 +104,17 @@ jobs:
           if [ "$STATUS" = "success" ]; then
             echo "### Job completed" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "### job failed" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Job failed" >> "$GITHUB_STEP_SUMMARY"
           fi
-          DISK="${{ inputs.disk_size_gb }}"
+          DURATION="${{ steps.launch.outputs.duration }}"
+          if [[ "$DURATION" =~ ^[0-9]+$ ]]; then
+            MINUTES=$(( DURATION / 60 ))
+            SECONDS=$(( DURATION % 60 ))
+            DURATION_STR="${MINUTES}m ${SECONDS}s"
+          else
+            DURATION_STR="n/a"
+          fi
           echo "| Job | \`${{ inputs.job }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Instance | \`${{ inputs.instance_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Disk | \`${DISK}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Disk | \`${{ inputs.disk_size_gb }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Duration | \`${DURATION_STR}\` |" >> "$GITHUB_STEP_SUMMARY"
