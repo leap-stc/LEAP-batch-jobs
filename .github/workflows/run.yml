@@ -3,6 +3,11 @@ name: Run Batch Job
 on:
   workflow_dispatch:
     inputs:
+      job:
+        description: 'Path to the job folder (e.g. examples/small_job)'
+        required: true
+        type: string
+
       instance_type:
         description: 'GCP instance type'
         required: true
@@ -49,8 +54,6 @@ jobs:
         with:
           workload_identity_provider: 'projects/893029493037/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
           service_account: 'skypilot-v1@leap-pangeo.iam.gserviceaccount.com'
-          # Force the action to generate a standard credentials file 
-          # without extra impersonation layers
           create_credentials_file: true
           export_environment_variables: true
 
@@ -68,11 +71,12 @@ jobs:
           if [[ "${{ inputs.disk_size_gb }}" =~ ^[0-9]+$ ]]; then
             DISK_ARG="--disk-size ${{ inputs.disk_size_gb }}"
           fi
+          cd "${{ inputs.job }}"
           uv run sky launch -y -c "$CLUSTER_NAME" \
             --down \
             --instance-type ${{ inputs.instance_type }} \
             $DISK_ARG \
-            batch/config.yml
+            config.yml
 
       - name: Summary
         if: always()
@@ -84,5 +88,6 @@ jobs:
             echo "### job failed" >> "$GITHUB_STEP_SUMMARY"
           fi
           DISK="${{ inputs.disk_size_gb }}"
+          echo "| Job | \`${{ inputs.job }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Instance | \`${{ inputs.instance_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Disk | \`${DISK}\` |" >> "$GITHUB_STEP_SUMMARY"
