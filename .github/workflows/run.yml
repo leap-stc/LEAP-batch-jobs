@@ -67,9 +67,10 @@ jobs:
           CLUSTER_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
           echo "### Dask Dashboard" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Once the cluster is provisioned and the script starts, run:" >> "$GITHUB_STEP_SUMMARY"
+          echo "Once the cluster is provisioned and the script starts:" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "sky ssh ${CLUSTER_NAME} -- -L 8787:localhost:8787" >> "$GITHUB_STEP_SUMMARY"
+          echo "sky status ${CLUSTER_NAME}  # updates ~/.ssh/config" >> "$GITHUB_STEP_SUMMARY"
+          echo "ssh -L 8787:localhost:8787 ${CLUSTER_NAME}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "Then open http://localhost:8787 in your browser." >> "$GITHUB_STEP_SUMMARY"
 
