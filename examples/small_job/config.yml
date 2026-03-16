@@ -1,4 +1,4 @@
-name: small batch
+name: small_batch
 
 resources:
   cloud: gcp

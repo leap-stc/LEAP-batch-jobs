@@ -1,4 +1,4 @@
-name: large batch
+name: large_batch
 
 resources:
   cloud: gcp
