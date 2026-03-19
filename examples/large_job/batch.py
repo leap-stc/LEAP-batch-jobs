@@ -16,7 +16,7 @@ from zarr.storage import ObjectStore
 import xarray as xr
 import zarr
 
-from batch.monitoring import ResourceMonitor
+from leap_batch.monitoring import ResourceMonitor
 
 zarr.config.set({"async.concurrency": 128})
 
