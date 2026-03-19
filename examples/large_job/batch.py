@@ -1,6 +1,8 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
+#   "dask",
+#   "flox",
 #   "obstore>=0.9.2",
 #   "xarray",
 #   "zarr",
