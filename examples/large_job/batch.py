@@ -22,9 +22,16 @@ def main():
 
     # We could toss this in a function
 
+    # skip_signature=True disables request signing for this public bucket.
+    # credential_provider bypasses native credential discovery (env vars, ADC
+    # file, instance metadata) which otherwise fails when the VM uses Workload
+    # Identity Federation (external_account format, unsupported by obstore).
+    # The provider is never actually called because skip_signature prevents
+    # any credential fetching.
     gcs_store = GCSStore.from_url(
         "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3/",
         skip_signature=True,
+        credential_provider=lambda: {"token": "", "expires_at": None},
     )
 
     zarr_store = ObjectStore(store=gcs_store, read_only=True)
