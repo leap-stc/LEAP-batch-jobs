@@ -3,6 +3,7 @@
 # dependencies = [
 #   "dask",
 #   "flox",
+#   "gcsfs",
 #   "obstore>=0.9.2",
 #   "xarray",
 #   "zarr",
@@ -47,8 +48,8 @@ def main():
         ds["maximum_2m_temperature_since_previous_post_processing"]
         - ds["minimum_2m_temperature_since_previous_post_processing"]
     )
-    ds[["diurnal_temperature"]].to_zarr(
-        "gs://leap-scratch/large_job_example_2.zarr", mode="w"
+
+    ds[["diurnal_temperature"]].to_zarr("gs://leap-scratch/leap-batch-job-examples/large-job.zarr", mode="w"
     )
 
 
