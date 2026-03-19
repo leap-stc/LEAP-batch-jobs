@@ -4,7 +4,9 @@
 #   "dask",
 #   "flox",
 #   "gcsfs",
+#   "leap-batch-jobs @ git+https://github.com/leap-stc/LEAP-batch-jobs.git",
 #   "obstore>=0.9.2",
+#   "psutil",
 #   "xarray",
 #   "zarr",
 # ]
@@ -13,6 +15,8 @@ from obstore.store import GCSStore
 from zarr.storage import ObjectStore
 import xarray as xr
 import zarr
+
+from batch.monitoring import ResourceMonitor
 
 zarr.config.set({"async.concurrency": 128})
 
@@ -44,14 +48,17 @@ def main():
         chunks={"time": 30, "latitude": 721, "longitude": 1440},
     ).drop_encoding()
     ds = ds[varlist]
+    ds = ds.isel(time=slice(0, 1000))
     ds["diurnal_temperature"] = (
         ds["maximum_2m_temperature_since_previous_post_processing"]
         - ds["minimum_2m_temperature_since_previous_post_processing"]
     )
 
-    ds[["diurnal_temperature"]].to_zarr("gs://leap-scratch/leap-batch-job-examples/large-job.zarr", mode="w"
+    ds[["diurnal_temperature"]].to_zarr(
+        "gs://leap-scratch/leap-batch-job-examples/large-job.zarr", mode="w"
     )
 
 
 if __name__ == "__main__":
-    main()
+    with ResourceMonitor():
+        main()
