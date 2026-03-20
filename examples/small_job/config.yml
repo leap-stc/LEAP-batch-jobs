@@ -16,7 +16,8 @@ setup: |
   curl -LsSf https://astral.sh/uv/install.sh | sh
 
 run: |
+  set -e
   source $HOME/.local/bin/env
   echo "Starting small batch job example"
-  uv run batch.py
+  uv run batch.py 2>&1
   echo "Job completed"
