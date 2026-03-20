@@ -16,6 +16,7 @@ from zarr.storage import ObjectStore
 import xarray as xr
 import zarr
 
+from leap_batch.gcs import gcp_credential_provider
 from leap_batch.monitoring import ResourceMonitor
 
 zarr.config.set({"async.concurrency": 128})
@@ -57,7 +58,8 @@ def main():
     ds = ds[["diurnal_temperature"]]
 
     write_store = GCSStore.from_url(
-        "gs://leap-scratch/leap-batch-job-examples/large-job-obstore.zarr"
+        "gs://leap-scratch/leap-batch-job-examples/large-job-obstore.zarr",
+        credential_provider=gcp_credential_provider,
     )
     write_zarr_store = ObjectStore(store=write_store, mode="w")
 
