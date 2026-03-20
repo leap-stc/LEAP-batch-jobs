@@ -55,7 +55,9 @@ def main():
         - ds["minimum_2m_temperature_since_previous_post_processing"]
     )
 
-    ds = ds[["diurnal_temperature"]]
+    ds = ds[["diurnal_temperature"]].chunk(
+        {"time": 30, "latitude": 721, "longitude": 1440}
+    )
 
     write_store = GCSStore.from_url(
         "gs://leap-scratch/leap-batch-job-examples/large-job-obstore.zarr",
