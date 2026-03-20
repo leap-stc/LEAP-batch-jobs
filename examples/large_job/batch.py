@@ -61,9 +61,9 @@ def main():
         "gs://leap-scratch/leap-batch-job-examples/large-job-obstore.zarr",
         credential_provider=gcp_credential_provider,
     )
-    write_zarr_store = ObjectStore(store=write_store, mode="w")
+    write_zarr_store = ObjectStore(store=write_store)
 
-    ds.to_zarr(write_zarr_store)
+    ds.to_zarr(write_zarr_store, mode="w")
 
 
 if __name__ == "__main__":
