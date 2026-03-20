@@ -54,11 +54,18 @@ def main():
         - ds["minimum_2m_temperature_since_previous_post_processing"]
     )
 
-    ds[["diurnal_temperature"]].to_zarr(
-        "gs://leap-scratch/leap-batch-job-examples/large-job.zarr", mode="w"
-    )
+    out = ds[["diurnal_temperature"]]
+    print(f"Writing dataset: {out}")
+    out.to_zarr("gs://leap-scratch/leap-batch-job-examples/large-job.zarr", mode="w")
+    print("Write complete.")
 
 
 if __name__ == "__main__":
-    with ResourceMonitor():
-        main()
+    try:
+        with ResourceMonitor():
+            main()
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+        raise

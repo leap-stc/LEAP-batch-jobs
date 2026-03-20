@@ -18,5 +18,5 @@ setup: |
 run: |
   source $HOME/.local/bin/env
   echo "Starting large batch job example"
-  uv run batch.py
-  echo "Job completed"
+  uv run batch.py 2>&1
+  echo "Job completed (exit code: $?)"
