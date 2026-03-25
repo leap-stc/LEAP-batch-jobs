@@ -1,13 +1,16 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
+#   "gcsfs",
+#   "leap-batch-jobs @ git+https://github.com/leap-stc/LEAP-batch-jobs.git",
 #   "xarray",
 #   "zarr",
-#   "gcsfs",
 # ]
 # ///
 
 import xarray as xr
+
+from leap_batch_jobs.monitoring import ProgressLogger, ResourceMonitor
 
 
 def main():
@@ -15,8 +18,16 @@ def main():
     ds = xr.open_dataset(store, engine="zarr", chunks="auto")
 
     climatology = ds.groupby("time.month").mean("time")
-    climatology.to_zarr("gs://leap-scratch/batch-test.zarr", mode="w")
+    with ProgressLogger():
+        climatology.to_zarr("gs://leap-scratch/batch-test.zarr", mode="w")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        with ResourceMonitor():
+            main()
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+        raise

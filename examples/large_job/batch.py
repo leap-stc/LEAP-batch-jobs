@@ -16,8 +16,8 @@ from zarr.storage import ObjectStore
 import xarray as xr
 import zarr
 
-from leap_batch.gcs import gcp_credential_provider
-from leap_batch.monitoring import ProgressLogger, ResourceMonitor
+from leap_batch_jobs.gcs import gcp_credential_provider
+from leap_batch_jobs.monitoring import ProgressLogger, ResourceMonitor
 
 zarr.config.set({"async.concurrency": 128})
 
