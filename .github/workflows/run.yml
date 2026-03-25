@@ -48,7 +48,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --group dispatch
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -78,7 +78,6 @@ jobs:
           cd "${{ inputs.job }}"
           START_TIME=$(date +%s)
           uv run sky launch -y -c "$CLUSTER_NAME" \
-            --down \
             $INSTANCE_ARG \
             $DISK_ARG \
             config.yml

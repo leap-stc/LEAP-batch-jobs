@@ -4,6 +4,11 @@ import time
 import psutil
 
 
+def _fmt_elapsed(seconds: float) -> str:
+    m, s = divmod(int(seconds), 60)
+    return f"{m}:{s:02d}"
+
+
 class ResourceMonitor:
     """Context manager that logs CPU, memory, and network I/O to stdout at a fixed interval."""
 
@@ -26,9 +31,9 @@ class ResourceMonitor:
             recv_mb_s = (net_after.bytes_recv - net_before.bytes_recv) / elapsed / 1e6
             sent_mb_s = (net_after.bytes_sent - net_before.bytes_sent) / elapsed / 1e6
             print(
-                f"[monitor] CPU: {cpu:.1f}%  "
-                f"RAM: {mem.used / 1e9:.1f}/{mem.total / 1e9:.1f} GB ({mem.percent:.1f}%)  "
-                f"net recv: {recv_mb_s:.1f} MB/s  sent: {sent_mb_s:.1f} MB/s",
+                f"[monitor]  CPU {cpu:.1f}%  "
+                f"RAM {mem.used / 1e9:.1f}/{mem.total / 1e9:.1f} GB ({mem.percent:.1f}%)  "
+                f"net ↓{recv_mb_s:.0f} ↑{sent_mb_s:.0f} MB/s",
                 flush=True,
             )
             net_before = net_after
@@ -41,6 +46,13 @@ class ResourceMonitor:
     def __exit__(self, *_):
         self._stop.set()
         self._thread.join()
+
+
+def _progress_line(pct: float, completed: int, total: int, elapsed: float) -> str:
+    bar_width = 28
+    filled = round(pct / 100 * bar_width)
+    bar = "█" * filled + "░" * (bar_width - filled)
+    return f"[progress] {pct:5.1f}% |{bar}| {completed}/{total} tasks  {_fmt_elapsed(elapsed)} elapsed"
 
 
 class ProgressLogger:
@@ -85,7 +97,7 @@ class ProgressLogger:
         if not errored:
             elapsed = time.monotonic() - self._start_time
             print(
-                f"[progress] 100% ({self._total}/{self._total} tasks, elapsed: {elapsed:.0f}s)",
+                _progress_line(100.0, self._total, self._total, elapsed),
                 flush=True,
             )
 
@@ -96,10 +108,7 @@ class ProgressLogger:
             total = self._total
             elapsed = time.monotonic() - self._start_time
             pct = (completed / total * 100) if total > 0 else 0
-            print(
-                f"[progress] {pct:.1f}% ({completed}/{total} tasks, elapsed: {elapsed:.0f}s)",
-                flush=True,
-            )
+            print(_progress_line(pct, completed, total, elapsed), flush=True)
 
     def __enter__(self):
         from dask.callbacks import Callback
