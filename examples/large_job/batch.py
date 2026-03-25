@@ -17,7 +17,7 @@ import xarray as xr
 import zarr
 
 from leap_batch.gcs import gcp_credential_provider
-from leap_batch.monitoring import ResourceMonitor
+from leap_batch.monitoring import ProgressLogger, ResourceMonitor
 
 zarr.config.set({"async.concurrency": 128})
 
@@ -65,7 +65,8 @@ def main():
     )
     write_zarr_store = ObjectStore(store=write_store)
 
-    ds.to_zarr(write_zarr_store, mode="w")
+    with ProgressLogger():
+        ds.to_zarr(write_zarr_store, mode="w")
 
 
 if __name__ == "__main__":
