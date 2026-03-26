@@ -8,12 +8,6 @@ on:
         required: true
         type: string
 
-      ref:
-        description: 'Branch or commit to run'
-        required: false
-        default: 'main'
-        type: string
-
       instance_type:
         description: 'GCP instance type (overrides config.yml)'
         required: true
@@ -66,8 +60,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.ref }}
 
       - uses: astral-sh/setup-uv@v7
         with:
@@ -140,8 +132,7 @@ jobs:
             DURATION_STR="n/a"
           fi
           echo "| Job | \`${{ inputs.job }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Ref | \`${{ inputs.ref }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Instance | \`${{ inputs.instance_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
+echo "| Instance | \`${{ inputs.instance_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Disk | \`${{ inputs.disk_size_gb }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Timeout | \`${{ inputs.timeout_minutes }}m\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Duration | \`${DURATION_STR}\` |" >> "$GITHUB_STEP_SUMMARY"

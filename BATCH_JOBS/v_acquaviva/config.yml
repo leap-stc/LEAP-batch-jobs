@@ -25,5 +25,5 @@ run: |
   set -e
   source $HOME/.local/bin/env
   echo "Starting batch"
-  uv run batch.py
+  uv run --python 3.12 batch.py
   echo "Job completed"
