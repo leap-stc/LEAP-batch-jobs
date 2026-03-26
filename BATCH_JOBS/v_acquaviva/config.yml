@@ -1,0 +1,29 @@
+name: dadapy_batch
+
+resources:
+  cloud: gcp
+  region: us-central1
+  instance_type: n4-standard-4
+  use_spot: false
+  # disk_size: 100
+  autostop:
+    idle_minutes: 5
+    down: true
+
+workdir: .
+
+envs:
+  N: 16000
+  RANDOM_STATE: 10
+  N_EPOCHS: 80
+  OUTPUT_PATH: gs://leap-persistent/fayamanda/dadapy/SOCAT
+
+setup: |
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+
+run: |
+  set -e
+  source $HOME/.local/bin/env
+  echo "Starting batch"
+  uv run batch.py
+  echo "Job completed"

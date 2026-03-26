@@ -44,6 +44,12 @@ on:
           - '4'
           - '6'
 
+      job_env:
+        description: 'Extra env vars to pass to the job (e.g. N=8000 N_EPOCHS=100). Overrides defaults in config.yml envs.'
+        required: false
+        default: ''
+        type: string
+
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -88,10 +94,15 @@ jobs:
             INSTANCE_ARG="--instance-type ${{ inputs.instance_type }}"
           fi
           cd "${{ inputs.job }}"
+          ENV_ARGS=""
+          for pair in ${{ inputs.job_env }}; do
+            ENV_ARGS="$ENV_ARGS --env $pair"
+          done
           START_TIME=$(date +%s)
           uv run sky launch -y -c "$CLUSTER_NAME" \
             $INSTANCE_ARG \
             $DISK_ARG \
+            $ENV_ARGS \
             config.yml
           END_TIME=$(date +%s)
           DURATION=$(( END_TIME - START_TIME ))
