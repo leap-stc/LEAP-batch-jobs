@@ -33,6 +33,17 @@ on:
           - '200'
           - '500'
 
+      timeout_minutes:
+        description: 'Max job runtime in minutes. GitHub-hosted runners cap at 360m — for longer jobs use a self-hosted runner.'
+        required: true
+        default: '120'
+        type: choice
+        options:
+          - '60'
+          - '120'
+          - '240'
+          - '360'
+
       job_env:
         description: 'Extra env vars to pass to the job (e.g. N=8000 N_EPOCHS=100). Overrides defaults in config.yml envs.'
         required: false
@@ -42,7 +53,7 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: ${{ fromJSON(inputs.timeout_minutes) }}
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -68,11 +79,11 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Submit job
-        id: submit
+      - name: Launch job
+        id: launch
         run: |
           uv run sky check gcp
-          JOB_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
+          CLUSTER_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
           DISK_ARG=""
           INSTANCE_ARG=""
           if [[ "${{ inputs.disk_size_gb }}" =~ ^[0-9]+$ ]]; then
@@ -86,29 +97,41 @@ jobs:
           for pair in ${{ inputs.job_env }}; do
             ENV_ARGS="$ENV_ARGS --env $pair"
           done
-          uv run sky jobs launch -y --detach-run -n "$JOB_NAME" \
+          START_TIME=$(date +%s)
+          uv run sky launch -y -c "$CLUSTER_NAME" \
             $INSTANCE_ARG \
             $DISK_ARG \
             $ENV_ARGS \
             config.yml
-          echo "job_name=$JOB_NAME" >> "$GITHUB_OUTPUT"
+          END_TIME=$(date +%s)
+          DURATION=$(( END_TIME - START_TIME ))
+          echo "duration=$DURATION" >> "$GITHUB_OUTPUT"
+
+      - name: Teardown cluster
+        if: always()
+        run: |
+          CLUSTER_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
+          uv run sky down -y "$CLUSTER_NAME" || true
 
       - name: Summary
         if: always()
         run: |
-          STATUS="${{ steps.submit.outcome }}"
-          JOB_NAME="${{ steps.submit.outputs.job_name }}"
+          STATUS="${{ steps.launch.outcome }}"
           if [ "$STATUS" = "success" ]; then
-            echo "### Job submitted" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Job completed" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "### Submission failed" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Job failed" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          DURATION="${{ steps.launch.outputs.duration }}"
+          if [[ "$DURATION" =~ ^[0-9]+$ ]]; then
+            MINUTES=$(( DURATION / 60 ))
+            SECONDS=$(( DURATION % 60 ))
+            DURATION_STR="${MINUTES}m ${SECONDS}s"
+          else
+            DURATION_STR="n/a"
           fi
           echo "| Job | \`${{ inputs.job }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Job name | \`${JOB_NAME}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Instance | \`${{ inputs.instance_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Disk | \`${{ inputs.disk_size_gb }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Env | \`${{ inputs.job_env }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          if [ "$STATUS" = "success" ]; then
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "Monitor: \`sky jobs queue\` or \`sky jobs logs ${JOB_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "| Timeout | \`${{ inputs.timeout_minutes }}m\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Duration | \`${DURATION_STR}\` |" >> "$GITHUB_STEP_SUMMARY"
