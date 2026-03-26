@@ -33,21 +33,27 @@ on:
           - '200'
           - '500'
 
-      timeout_hours:
-        description: 'Max job runtime in hours. GitHub-hosted runners cap at 6h — for longer jobs use a self-hosted runner.'
+      timeout_minutes:
+        description: 'Max job runtime in minutes. GitHub-hosted runners cap at 360m — for longer jobs use a self-hosted runner.'
         required: true
-        default: '2'
+        default: '120'
         type: choice
         options:
-          - '1'
-          - '2'
-          - '4'
-          - '6'
+          - '60'
+          - '120'
+          - '240'
+          - '360'
+
+      job_env:
+        description: 'Extra env vars to pass to the job (e.g. N=8000 N_EPOCHS=100). Overrides defaults in config.yml envs.'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ fromJSON(inputs.timeout_hours) * 60 }}
+    timeout-minutes: ${{ fromJSON(inputs.timeout_minutes) }}
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -73,7 +79,6 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-
       - name: Launch job
         id: launch
         run: |
@@ -88,10 +93,15 @@ jobs:
             INSTANCE_ARG="--instance-type ${{ inputs.instance_type }}"
           fi
           cd "${{ inputs.job }}"
+          ENV_ARGS=""
+          for pair in ${{ inputs.job_env }}; do
+            ENV_ARGS="$ENV_ARGS --env $pair"
+          done
           START_TIME=$(date +%s)
           uv run sky launch -y -c "$CLUSTER_NAME" \
             $INSTANCE_ARG \
             $DISK_ARG \
+            $ENV_ARGS \
             config.yml
           END_TIME=$(date +%s)
           DURATION=$(( END_TIME - START_TIME ))
@@ -123,5 +133,5 @@ jobs:
           echo "| Job | \`${{ inputs.job }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Instance | \`${{ inputs.instance_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Disk | \`${{ inputs.disk_size_gb }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Timeout | \`${{ inputs.timeout_hours }}h\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Timeout | \`${{ inputs.timeout_minutes }}m\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Duration | \`${DURATION_STR}\` |" >> "$GITHUB_STEP_SUMMARY"
