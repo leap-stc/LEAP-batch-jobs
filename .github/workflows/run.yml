@@ -33,9 +33,21 @@ on:
           - '200'
           - '500'
 
+      timeout_hours:
+        description: 'Max job runtime in hours. GitHub-hosted runners cap at 6h — for longer jobs use a self-hosted runner.'
+        required: true
+        default: '2'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '4'
+          - '6'
+
 jobs:
   run:
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ fromJSON(inputs.timeout_hours) * 60 }}
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -111,4 +123,5 @@ jobs:
           echo "| Job | \`${{ inputs.job }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Instance | \`${{ inputs.instance_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Disk | \`${{ inputs.disk_size_gb }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Timeout | \`${{ inputs.timeout_hours }}h\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Duration | \`${DURATION_STR}\` |" >> "$GITHUB_STEP_SUMMARY"
