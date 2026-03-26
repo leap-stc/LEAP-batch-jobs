@@ -8,6 +8,12 @@ on:
         required: true
         type: string
 
+      ref:
+        description: 'Branch or commit to run'
+        required: false
+        default: 'main'
+        type: string
+
       instance_type:
         description: 'GCP instance type (overrides config.yml)'
         required: true
@@ -33,16 +39,16 @@ on:
           - '200'
           - '500'
 
-      timeout_hours:
-        description: 'Max job runtime in hours. GitHub-hosted runners cap at 6h — for longer jobs use a self-hosted runner.'
+      timeout_minutes:
+        description: 'Max job runtime in minutes. GitHub-hosted runners cap at 360m — for longer jobs use a self-hosted runner.'
         required: true
-        default: '2'
+        default: '120'
         type: choice
         options:
-          - '1'
-          - '2'
-          - '4'
-          - '6'
+          - '60'
+          - '120'
+          - '240'
+          - '360'
 
       job_env:
         description: 'Extra env vars to pass to the job (e.g. N=8000 N_EPOCHS=100). Overrides defaults in config.yml envs.'
@@ -53,13 +59,15 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ fromJSON(inputs.timeout_hours) * 60 }}
+    timeout-minutes: ${{ fromJSON(inputs.timeout_minutes) }}
     permissions:
       contents: 'read'
       id-token: 'write'
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: astral-sh/setup-uv@v7
         with:
@@ -132,7 +140,8 @@ jobs:
             DURATION_STR="n/a"
           fi
           echo "| Job | \`${{ inputs.job }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Ref | \`${{ inputs.ref }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Instance | \`${{ inputs.instance_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Disk | \`${{ inputs.disk_size_gb }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Timeout | \`${{ inputs.timeout_hours }}h\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Timeout | \`${{ inputs.timeout_minutes }}m\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Duration | \`${DURATION_STR}\` |" >> "$GITHUB_STEP_SUMMARY"
