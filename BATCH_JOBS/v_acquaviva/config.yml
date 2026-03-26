@@ -16,7 +16,7 @@ envs:
   N: 16000
   RANDOM_STATE: 10
   N_EPOCHS: 80
-  OUTPUT_PATH: gs://leap-persistent/fayamanda/dadapy/SOCAT
+  OUTPUT_PATH: gs://leap-scratch/dadapy/SOCAT
 
 setup: |
   curl -LsSf https://astral.sh/uv/install.sh | sh
