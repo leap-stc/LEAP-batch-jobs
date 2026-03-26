@@ -29,7 +29,7 @@ def main():
     random_state = int(os.environ.get("RANDOM_STATE", 10))
     n_epochs = int(os.environ.get("N_EPOCHS", 80))
     output_path = os.environ.get(
-        "OUTPUT_PATH", "gs://leap-persistent/fayamanda/dadapy/SOCAT"
+        "OUTPUT_PATH", "gs://leap-persistent/dadapy/SOCAT"
     )
     fs = gcsfs.GCSFileSystem()
 
