@@ -3,7 +3,7 @@ name: dadapy_batch
 resources:
   cloud: gcp
   region: us-central1
-  instance_type: n4-standard-4
+  instance_type: n4-standard-8
   use_spot: false
   # disk_size: 100
   autostop:
