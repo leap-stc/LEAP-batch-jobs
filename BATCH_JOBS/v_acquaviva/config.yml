@@ -19,7 +19,8 @@ envs:
   OUTPUT_PATH: gs://leap-scratch/dadapy/SOCAT
 
 setup: |
-  sudo apt-get install -y gcc
+  set -e
+  sudo apt-get install -y build-essential
   curl -LsSf https://astral.sh/uv/install.sh | sh
 
 run: |
