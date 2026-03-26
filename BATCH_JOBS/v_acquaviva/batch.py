@@ -28,9 +28,7 @@ def main():
     n = int(os.environ.get("N", 16000))
     random_state = int(os.environ.get("RANDOM_STATE", 10))
     n_epochs = int(os.environ.get("N_EPOCHS", 80))
-    output_path = os.environ.get(
-        "OUTPUT_PATH", "gs://leap-persistent/dadapy/SOCAT"
-    )
+    output_path = os.environ.get("OUTPUT_PATH", "gs://leap-persistent/dadapy/SOCAT")
     fs = gcsfs.GCSFileSystem()
 
     SOCAT_mask = xr.open_dataset(

@@ -10,12 +10,7 @@ resources:
     idle_minutes: 5
     down: true
 
-file_mounts:
-  ~/sky_workdir:
-    name: skypilot-leap-workdir
-    source: ./
-    store: gcs
-    persistent: true
+workdir: .
 
 envs:
   N: 16000
@@ -32,7 +27,6 @@ setup: |
 run: |
   set -e
   source $HOME/.local/bin/env
-  cd ~/sky_workdir
   echo "Starting batch"
   uv run --python 3.12 batch.py
   echo "Job completed"
