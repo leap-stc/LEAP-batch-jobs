@@ -2,6 +2,8 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "dadapy",
+#   "numpy<2",
+#   "scipy<1.15",
 #   "gcsfs",
 #   "leap-batch-jobs @ git+https://github.com/leap-stc/LEAP-batch-jobs.git",
 #   "numpy",
