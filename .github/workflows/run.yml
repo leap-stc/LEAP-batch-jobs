@@ -44,7 +44,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
-      id-token: 'write'
 
     steps:
       - uses: actions/checkout@v5
@@ -56,30 +55,12 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dispatch
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: 'projects/893029493037/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-          service_account: 'skypilot-v1@leap-pangeo.iam.gserviceaccount.com'
-          create_credentials_file: true
-          export_environment_variables: true
-
-      - name: Ensure API server is running
-        # The API server auto-stops when idle. This restarts it if stopped (~2 min cold start).
-        # If it's already running this is a no-op.
-        run: uv run sky start -y leap-api-server
-
       - name: Submit job
         id: submit
         env:
           SKYPILOT_API_URL: ${{ secrets.SKYPILOT_API_URL }}
-          SKYPILOT_SERVICE_ACCOUNT_TOKEN: ${{ secrets.SKYPILOT_SERVICE_ACCOUNT_TOKEN }}
         run: |
-          if [ -z "$SKYPILOT_SERVICE_ACCOUNT_TOKEN" ]; then
-            uv run sky api login -e "$SKYPILOT_API_URL"
-          else
-            uv run sky api login -e "$SKYPILOT_API_URL" --token "$SKYPILOT_SERVICE_ACCOUNT_TOKEN"
-          fi
+          uv run sky api login -e "$SKYPILOT_API_URL"
 
           JOB_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
           DISK_ARG=""
