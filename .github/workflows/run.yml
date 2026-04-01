@@ -58,7 +58,7 @@ jobs:
       - name: Submit job
         id: submit
         env:
-          SKYPILOT_API_URL: ${{ secrets.SKYPILOT_API_URL }}
+          SKYPILOT_API_URL: ${{ vars.SKYPILOT_API_URL }}
         run: |
           uv run sky api login -e "$SKYPILOT_API_URL"
 
@@ -91,7 +91,7 @@ jobs:
         if: always()
         run: |
           JOB_ID="${{ steps.submit.outputs.job_id }}"
-          DASHBOARD="${{ secrets.SKYPILOT_API_URL }}/dashboard"
+          DASHBOARD="${{ vars.SKYPILOT_API_URL }}/dashboard"
           STATUS="${{ steps.submit.outcome }}"
           if [ "$STATUS" = "success" ]; then
             echo "### Job submitted" >> "$GITHUB_STEP_SUMMARY"

@@ -16,5 +16,5 @@ run: |
   set -e
   source $HOME/.local/bin/env
   echo "Starting large batch job example"
-  uv run batch.py
+  PYTHONUNBUFFERED=1 uv run batch.py
   echo "Job completed"
