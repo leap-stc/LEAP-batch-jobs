@@ -14,7 +14,7 @@ dependencies = [
 
 [dependency-groups]
 dispatch = [
-    "skypilot[gcp]>=0.11.2",
+    "skypilot[gcp]>=0.12.0",
 ]
 
 [build-system]
