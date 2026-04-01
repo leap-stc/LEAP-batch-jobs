@@ -33,21 +33,15 @@ on:
           - '200'
           - '500'
 
-      timeout_hours:
-        description: 'Max job runtime in hours. GitHub-hosted runners cap at 6h — for longer jobs use a self-hosted runner.'
-        required: true
-        default: '2'
-        type: choice
-        options:
-          - '1'
-          - '2'
-          - '4'
-          - '6'
+      job_env:
+        description: 'Extra env vars to pass to the job (e.g. N=8000 N_EPOCHS=100). Overrides defaults in config.yml envs.'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ fromJSON(inputs.timeout_hours) * 60 }}
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -70,15 +64,24 @@ jobs:
           create_credentials_file: true
           export_environment_variables: true
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+      - name: Ensure API server is running
+        # The API server auto-stops when idle. This restarts it if stopped (~2 min cold start).
+        # If it's already running this is a no-op.
+        run: uv run sky start -y leap-api-server
 
-
-      - name: Launch job
-        id: launch
+      - name: Submit job
+        id: submit
+        env:
+          SKYPILOT_API_URL: ${{ secrets.SKYPILOT_API_URL }}
+          SKYPILOT_SERVICE_ACCOUNT_TOKEN: ${{ secrets.SKYPILOT_SERVICE_ACCOUNT_TOKEN }}
         run: |
-          uv run sky check gcp
-          CLUSTER_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
+          if [ -z "$SKYPILOT_SERVICE_ACCOUNT_TOKEN" ]; then
+            uv run sky api login -e "$SKYPILOT_API_URL"
+          else
+            uv run sky api login -e "$SKYPILOT_API_URL" --token "$SKYPILOT_SERVICE_ACCOUNT_TOKEN"
+          fi
+
+          JOB_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
           DISK_ARG=""
           INSTANCE_ARG=""
           if [[ "${{ inputs.disk_size_gb }}" =~ ^[0-9]+$ ]]; then
@@ -87,41 +90,37 @@ jobs:
           if [[ "${{ inputs.instance_type }}" != "from config" ]]; then
             INSTANCE_ARG="--instance-type ${{ inputs.instance_type }}"
           fi
+          ENV_ARGS=""
+          for pair in ${{ inputs.job_env }}; do
+            ENV_ARGS="$ENV_ARGS --env $pair"
+          done
+
           cd "${{ inputs.job }}"
-          START_TIME=$(date +%s)
-          uv run sky launch -y -c "$CLUSTER_NAME" \
+          LAUNCH_OUTPUT=$(uv run sky jobs launch -y -n "$JOB_NAME" --async \
             $INSTANCE_ARG \
             $DISK_ARG \
-            config.yml
-          END_TIME=$(date +%s)
-          DURATION=$(( END_TIME - START_TIME ))
-          echo "duration=$DURATION" >> "$GITHUB_OUTPUT"
+            $ENV_ARGS \
+            config.yml 2>&1)
+          echo "$LAUNCH_OUTPUT"
 
-      - name: Teardown cluster
-        if: always()
-        run: |
-          CLUSTER_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
-          uv run sky down -y "$CLUSTER_NAME" || true
+          JOB_ID=$(echo "$LAUNCH_OUTPUT" | grep -oP 'Job submitted, ID: \K\d+' || true)
+          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
 
       - name: Summary
         if: always()
         run: |
-          STATUS="${{ steps.launch.outcome }}"
+          JOB_ID="${{ steps.submit.outputs.job_id }}"
+          DASHBOARD="${{ secrets.SKYPILOT_API_URL }}/dashboard"
+          STATUS="${{ steps.submit.outcome }}"
           if [ "$STATUS" = "success" ]; then
-            echo "### Job completed" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Job submitted" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "### Job failed" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          DURATION="${{ steps.launch.outputs.duration }}"
-          if [[ "$DURATION" =~ ^[0-9]+$ ]]; then
-            MINUTES=$(( DURATION / 60 ))
-            SECONDS=$(( DURATION % 60 ))
-            DURATION_STR="${MINUTES}m ${SECONDS}s"
-          else
-            DURATION_STR="n/a"
+            echo "### Job submission failed" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "| Job | \`${{ inputs.job }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Instance | \`${{ inputs.instance_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Disk | \`${{ inputs.disk_size_gb }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Timeout | \`${{ inputs.timeout_hours }}h\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Duration | \`${DURATION_STR}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job ID | \`${JOB_ID}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Dashboard | ${DASHBOARD} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Monitor: \`sky jobs logs ${JOB_ID}\` or \`sky jobs queue\`" >> "$GITHUB_STEP_SUMMARY"
