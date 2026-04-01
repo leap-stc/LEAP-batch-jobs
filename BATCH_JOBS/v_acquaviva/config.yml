@@ -6,9 +6,6 @@ resources:
   instance_type: n4-standard-8
   use_spot: false
   # disk_size: 100
-  autostop:
-    idle_minutes: 5
-    down: true
 
 workdir: .
 
@@ -28,5 +25,5 @@ run: |
   set -e
   source $HOME/.local/bin/env
   echo "Starting batch"
-  uv run --python 3.12 batch.py
+  PYTHONUNBUFFERED=1 uv run --python 3.12 batch.py
   echo "Job completed"
