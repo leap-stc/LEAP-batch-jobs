@@ -62,7 +62,7 @@ jobs:
         run: |
           uv run sky api login -e "$SKYPILOT_API_URL"
 
-          JOB_NAME="${{ github.event.repository.name }}-${{ github.run_id }}"
+          JOB_NAME="$(basename '${{ inputs.job }}')-${{ github.actor }}-${{ github.run_id }}"
           DISK_ARG=""
           INSTANCE_ARG=""
           if [[ "${{ inputs.disk_size_gb }}" =~ ^[0-9]+$ ]]; then
@@ -104,4 +104,8 @@ jobs:
           echo "| Job ID | \`${JOB_ID}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Dashboard | ${DASHBOARD} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Monitor: \`sky jobs logs ${JOB_ID}\` or \`sky jobs queue\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Stream logs:**" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "sky api login -e ${{ vars.SKYPILOT_API_URL }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "sky jobs logs --name $(basename '${{ inputs.job }}')-${{ github.actor }}-${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
