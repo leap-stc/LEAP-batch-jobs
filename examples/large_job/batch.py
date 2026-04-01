@@ -49,7 +49,7 @@ def main():
         chunks={"time": 30, "latitude": 721, "longitude": 1440},
     ).drop_encoding()
     ds = ds[varlist]
-    ds = ds.sel(time=slice("2000-01-01", "2005-01-01"))
+    ds = ds.sel(time=slice("2000-01-01", "2010-01-01"))
     ds["diurnal_temperature"] = (
         ds["maximum_2m_temperature_since_previous_post_processing"]
         - ds["minimum_2m_temperature_since_previous_post_processing"]
