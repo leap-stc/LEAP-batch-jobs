@@ -59,24 +59,28 @@ jobs:
         id: submit
         env:
           SKYPILOT_API_URL: ${{ vars.SKYPILOT_API_URL }}
+          INPUT_JOB: ${{ inputs.job }}
+          INPUT_INSTANCE_TYPE: ${{ inputs.instance_type }}
+          INPUT_DISK_SIZE_GB: ${{ inputs.disk_size_gb }}
+          INPUT_JOB_ENV: ${{ inputs.job_env }}
         run: |
           uv run sky api login -e "$SKYPILOT_API_URL"
 
-          JOB_NAME="$(basename '${{ inputs.job }}')-${{ github.actor }}-${{ github.run_id }}"
+          JOB_NAME="$(basename "$INPUT_JOB")-$GITHUB_ACTOR-$GITHUB_RUN_ID"
           DISK_ARG=""
           INSTANCE_ARG=""
-          if [[ "${{ inputs.disk_size_gb }}" =~ ^[0-9]+$ ]]; then
-            DISK_ARG="--disk-size ${{ inputs.disk_size_gb }}"
+          if [[ "$INPUT_DISK_SIZE_GB" =~ ^[0-9]+$ ]]; then
+            DISK_ARG="--disk-size $INPUT_DISK_SIZE_GB"
           fi
-          if [[ "${{ inputs.instance_type }}" != "from config" ]]; then
-            INSTANCE_ARG="--instance-type ${{ inputs.instance_type }}"
+          if [[ "$INPUT_INSTANCE_TYPE" != "from config" ]]; then
+            INSTANCE_ARG="--instance-type $INPUT_INSTANCE_TYPE"
           fi
           ENV_ARGS=""
-          for pair in ${{ inputs.job_env }}; do
+          for pair in $INPUT_JOB_ENV; do
             ENV_ARGS="$ENV_ARGS --env $pair"
           done
 
-          cd "${{ inputs.job }}"
+          cd "$INPUT_JOB"
           LAUNCH_OUTPUT=$(uv run sky jobs launch -y -n "$JOB_NAME" --async \
             $INSTANCE_ARG \
             $DISK_ARG \
@@ -89,23 +93,28 @@ jobs:
 
       - name: Summary
         if: always()
+        env:
+          SKYPILOT_API_URL: ${{ vars.SKYPILOT_API_URL }}
+          INPUT_JOB: ${{ inputs.job }}
+          INPUT_INSTANCE_TYPE: ${{ inputs.instance_type }}
+          INPUT_DISK_SIZE_GB: ${{ inputs.disk_size_gb }}
+          JOB_ID: ${{ steps.submit.outputs.job_id }}
+          STEP_OUTCOME: ${{ steps.submit.outcome }}
         run: |
-          JOB_ID="${{ steps.submit.outputs.job_id }}"
-          DASHBOARD="${{ vars.SKYPILOT_API_URL }}/dashboard"
-          STATUS="${{ steps.submit.outcome }}"
-          if [ "$STATUS" = "success" ]; then
+          DASHBOARD="${SKYPILOT_API_URL}/dashboard"
+          if [ "$STEP_OUTCOME" = "success" ]; then
             echo "### Job submitted" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "### Job submission failed" >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo "| Job | \`${{ inputs.job }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Instance | \`${{ inputs.instance_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Disk | \`${{ inputs.disk_size_gb }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | \`${INPUT_JOB}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Instance | \`${INPUT_INSTANCE_TYPE}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Disk | \`${INPUT_DISK_SIZE_GB}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Job ID | \`${JOB_ID}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Dashboard | ${DASHBOARD} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**Stream logs:**" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "sky api login -e ${{ vars.SKYPILOT_API_URL }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "sky jobs logs --name $(basename '${{ inputs.job }}')-${{ github.actor }}-${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "sky api login -e ${SKYPILOT_API_URL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "sky jobs logs --name $(basename "$INPUT_JOB")-$GITHUB_ACTOR-$GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
