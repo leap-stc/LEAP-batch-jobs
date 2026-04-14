@@ -12,6 +12,13 @@ Run batch Python jobs on GCP via [SkyPilot](https://docs.skypilot.co) and GitHub
 
 ---
 
+> **Never put secrets or credentials in your PR.**
+> Everything in `batch.py` and `config.yml` is public — it lives in this repo and is visible to anyone. Hardcoded tokens, passwords, or API keys will be exposed. They will also appear in SkyPilot logs, which are visible on the shared dashboard.
+>
+> Use environment variables for anything sensitive. If you need a secret injected at run time, ask a maintainer to add it as a GitHub Actions secret and pass it through `job_env` at dispatch — it will never touch the repo.
+
+---
+
 ## Submitting a job
 
 ### 1. Fork and create a branch

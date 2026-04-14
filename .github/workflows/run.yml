@@ -34,7 +34,7 @@ on:
           - '500'
 
       job_env:
-        description: 'Extra env vars to pass to the job (e.g. N=8000 N_EPOCHS=100). Overrides defaults in config.yml envs.'
+        description: 'Extra env vars to pass to the job (e.g. YEAR=2010 OUTPUT_PATH=gs://...). Overrides defaults in config.yml envs.'
         required: false
         default: ''
         type: string
@@ -68,28 +68,16 @@ jobs:
           uv run sky api login -e "$SKYPILOT_API_URL"
 
           JOB_NAME="$(basename "$INPUT_JOB")-$GITHUB_ACTOR-$GITHUB_RUN_ID"
-          DISK_ARG=""
-          INSTANCE_ARG=""
-          if [[ "$INPUT_DISK_SIZE_GB" =~ ^[0-9]+$ ]]; then
-            DISK_ARG="--disk-size $INPUT_DISK_SIZE_GB"
-          fi
-          if [[ "$INPUT_INSTANCE_TYPE" != "from config" ]]; then
-            INSTANCE_ARG="--instance-type $INPUT_INSTANCE_TYPE"
-          fi
-          ENV_ARGS=""
+          LAUNCH_ARGS=(-y -n "$JOB_NAME" --async)
+          [[ "$INPUT_DISK_SIZE_GB" =~ ^[0-9]+$ ]] && LAUNCH_ARGS+=(--disk-size "$INPUT_DISK_SIZE_GB")
+          [[ "$INPUT_INSTANCE_TYPE" != "from config" ]] && LAUNCH_ARGS+=(--instance-type "$INPUT_INSTANCE_TYPE")
           for pair in $INPUT_JOB_ENV; do
-            ENV_ARGS="$ENV_ARGS --env $pair"
+            LAUNCH_ARGS+=(--env "$pair")
           done
-          if [[ -n "$SLACK_WEBHOOK_URL" ]]; then
-            ENV_ARGS="$ENV_ARGS --env SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL"
-          fi
+          [[ -n "$SLACK_WEBHOOK_URL" ]] && LAUNCH_ARGS+=(--env "SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL")
 
           cd "$INPUT_JOB"
-          LAUNCH_OUTPUT=$(uv run sky jobs launch -y -n "$JOB_NAME" --async \
-            $INSTANCE_ARG \
-            $DISK_ARG \
-            $ENV_ARGS \
-            config.yml 2>&1)
+          LAUNCH_OUTPUT=$(uv run sky jobs launch "${LAUNCH_ARGS[@]}" config.yml 2>&1)
           echo "$LAUNCH_OUTPUT"
 
           JOB_ID=$(echo "$LAUNCH_OUTPUT" | grep -oP 'Job submitted, ID: \K\d+' || true)
