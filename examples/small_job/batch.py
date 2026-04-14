@@ -10,7 +10,7 @@
 
 import xarray as xr
 
-from leap_batch_jobs.monitoring import ProgressLogger, ResourceMonitor
+from leap_batch_jobs.monitoring import ProgressLogger, ResourceMonitor, notify_slack
 
 
 def main():
@@ -18,8 +18,10 @@ def main():
     ds = xr.open_dataset(store, engine="zarr", chunks="auto")
 
     climatology = ds.groupby("time.month").mean("time")
+    output = "gs://leap-scratch/batch-test.zarr"
     with ProgressLogger():
-        climatology.to_zarr("gs://leap-scratch/batch-test.zarr", mode="w")
+        climatology.to_zarr(output, mode="w")
+    notify_slack(f"small_job finished: {output}")
 
 
 if __name__ == "__main__":
@@ -30,4 +32,5 @@ if __name__ == "__main__":
         import traceback
 
         traceback.print_exc()
+        notify_slack("small_job failed — check the logs")
         raise

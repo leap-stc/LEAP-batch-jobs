@@ -1,7 +1,35 @@
+import json
+import os
 import threading
 import time
+import urllib.request
 
 import psutil
+
+
+def notify_slack(message: str, webhook_url: str | None = None) -> None:
+    """Post a message to the #leap-batch-jobs Slack channel.
+
+    The webhook URL is injected automatically by GitHub Actions via the
+    SLACK_WEBHOOK_URL environment variable. You can also pass it explicitly.
+    Does nothing if no URL is available, so it is safe to call unconditionally.
+
+    Usage::
+
+        notify_slack(f"my_project finished: gs://leap-scratch/me/output.zarr")
+    """
+    url = webhook_url or os.environ.get("SLACK_WEBHOOK_URL")
+    if not url:
+        return
+    payload = json.dumps({"text": message}).encode()
+    req = urllib.request.Request(
+        url, data=payload, headers={"Content-Type": "application/json"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp.read()
+    except Exception as exc:
+        print(f"[notify_slack] failed to send notification: {exc}", flush=True)
 
 
 def _fmt_elapsed(seconds: float) -> str:

@@ -46,7 +46,7 @@ jobs:
       contents: 'read'
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - uses: astral-sh/setup-uv@v7
         with:
@@ -59,6 +59,7 @@ jobs:
         id: submit
         env:
           SKYPILOT_API_URL: ${{ vars.SKYPILOT_API_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           INPUT_JOB: ${{ inputs.job }}
           INPUT_INSTANCE_TYPE: ${{ inputs.instance_type }}
           INPUT_DISK_SIZE_GB: ${{ inputs.disk_size_gb }}
@@ -79,6 +80,9 @@ jobs:
           for pair in $INPUT_JOB_ENV; do
             ENV_ARGS="$ENV_ARGS --env $pair"
           done
+          if [[ -n "$SLACK_WEBHOOK_URL" ]]; then
+            ENV_ARGS="$ENV_ARGS --env SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL"
+          fi
 
           cd "$INPUT_JOB"
           LAUNCH_OUTPUT=$(uv run sky jobs launch -y -n "$JOB_NAME" --async \
