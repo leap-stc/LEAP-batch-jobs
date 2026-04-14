@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "gcsfs",
-#   "leap-batch-jobs @ git+https://github.com/leap-stc/LEAP-batch-jobs.git@readme",
+#   "leap-batch-jobs @ git+https://github.com/leap-stc/LEAP-batch-jobs.git",
 #   "xarray",
 #   "zarr",
 # ]
