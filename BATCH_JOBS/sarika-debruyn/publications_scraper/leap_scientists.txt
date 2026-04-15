@@ -1,0 +1,50 @@
+# Format: Full Name | ORCID (optional)
+# Lines starting with # are comments and are ignored.
+# ORCID format: 0000-0000-0000-0000
+# If no ORCID, just leave blank after the pipe or omit the pipe entirely.
+
+
+# ── PIs & Senior Faculty ──────────────────────────────────────────────
+Pierre Gentine          | 0000-0002-0845-8345
+Ryan Abernathey         | 0000-0001-5999-4917
+Laure Zanna             | 0000-0002-8472-4828
+Lorenzo Polvani         | 0000-0001-6381-7082
+Adam Sobel              | 0000-0003-3715-5717
+Kyle Mandli             |
+Galen McKinley          | 0000-0003-2010-642X
+Tian Zheng              |
+Stephan Mandt           |
+Anima Anandkumar        | 0000-0002-6974-6797
+Paris Perdikaris        |
+Robert Pincus           | 0000-0002-0327-9310
+Veronika Eyring         | 0000-0002-6887-4885
+Giulio Boccaletti       |
+Gideon Dresdner         |
+Noah Brenowitz          |
+Elizabeth Barnes        | 0000-0003-4284-9320
+Aditi Sheshadri         |
+Manon Sabot             |
+
+# ── Research Scientists & Postdocs ───────────────────────────────────
+Andrew Williams         | 0000-0003-3494-6530
+Julius Busecke          | 0000-0001-8571-865X
+Valentina Acquaviva     |
+Alistair Adcroft        |
+Dhruv Balwada           | 0000-0001-6632-0187
+Tom Bolton              |
+Spencer Clark           |
+Nora Loose              |
+Fabrizio Falasca        |
+Gregory Elsaesser       | 0000-0002-5007-9476
+Takaya Uchida           |
+Redouane Lguensat       |
+Pavel Perezhogin        |
+Minah Yang              |
+
+# ── Graduate Students ─────────────────────────────────────────────────
+# Add student names here as they join the center
+Lucas Teixeira          |
+Dante Luber             |
+Tatiana Platonova       |
+Becca Fay               | 0000-0001-8021-8902
+Thea Heimdal            |
