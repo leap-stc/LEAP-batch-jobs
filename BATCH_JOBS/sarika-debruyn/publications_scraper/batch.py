@@ -50,9 +50,9 @@ Usage:
 # dependencies = [
 #   "requests",
 #   "pandas",
-#   "openpyxl",
 #   "pdfplumber",
 #   "beautifulsoup4",
+#   "gcsfs",
 # ]
 # /// Imports and configuration
 
@@ -65,8 +65,6 @@ import requests
 import pandas as pd
 import xml.etree.ElementTree as ET
 from datetime import datetime, date
-from openpyxl import load_workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from leap_batch_jobs.monitoring import ProgressLogger, ResourceMonitor, notify_slack
 
 try:
@@ -79,7 +77,7 @@ except ImportError:
 # ─── USER CONFIG ───────────────────────────────────────────────────────────────
 
 SCIENTISTS_FILE = "leap_scientists.txt"
-OUTPUT_FILE     = "leap_publications.xlsx"
+OUTPUT_FILE     = os.environ.get("OUTPUT_PATH", "gs://leap-persistent/publications/leap_publications.csv")
 
 # Scrape publications from this date onward
 START_DATE = date(2025, 5, 1)
@@ -88,11 +86,10 @@ START_DATE = date(2025, 5, 1)
 NSF_AWARD = "2019625"
 
 # NASA ADS API token – get yours free at https://ui.adsabs.harvard.edu
-# Leave empty "" to skip NASA ADS searches
 ADS_API_TOKEN = os.environ.get("ADS_API_TOKEN", "")
 
 # Contact email for API polite pools
-CONTACT_EMAIL = "leap-publications@columbia.edu"
+CONTACT_EMAIL = "sed2194@columbia.edu"
 
 # ─── KEYWORD / QUERY LISTS ─────────────────────────────────────────────────────
 
@@ -933,86 +930,22 @@ EXPORT_COLS = [
     "Last Name", "Title", "Link", "Published In",
     "Notes", "LEAP Funding Acknowledged?", "Date", "Citation (NSF Format)"
 ]
-HEADER_COLOR  = "003865"
-YES_COLOR     = "C6EFCE"
-LIKELY_COLOR  = "FFEB9C"
-NO_COLOR      = "FFC7CE"
 
-
-def write_excel(rows, filepath):
-    export = [{c: r.get(c,"") for c in EXPORT_COLS} for r in rows]
-    df = pd.DataFrame(export, columns=EXPORT_COLS)
-    df.to_excel(filepath, index=False, sheet_name="LEAP Publications")
-
-    wb = load_workbook(filepath)
-    ws = wb.active
-    thin   = Side(style="thin", color="CCCCCC")
-    border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-    for cell in ws[1]:
-        cell.font      = Font(bold=True, color="FFFFFF", name="Arial", size=11)
-        cell.fill      = PatternFill("solid", start_color=HEADER_COLOR, end_color=HEADER_COLOR)
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        cell.border    = border
-    ws.row_dimensions[1].height = 32
-
-    for col, w in {"A":16,"B":52,"C":42,"D":28,"E":40,"F":26,"G":12,"H":72}.items():
-        ws.column_dimensions[col].width = w
-
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = ws.dimensions
-
-    yes_f    = PatternFill("solid", start_color=YES_COLOR,    end_color=YES_COLOR)
-    likely_f = PatternFill("solid", start_color=LIKELY_COLOR, end_color=LIKELY_COLOR)
-    no_f     = PatternFill("solid", start_color=NO_COLOR,     end_color=NO_COLOR)
-
-    for idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
-        leap_val = ws.cell(row=idx, column=6).value or ""
-        for cell in row:
-            cell.font      = Font(name="Arial", size=10)
-            cell.alignment = Alignment(wrap_text=True, vertical="top")
-            cell.border    = border
-            if cell.column == 6:
-                if   leap_val == "Yes":    cell.fill = yes_f;    cell.font = Font(name="Arial", size=10, bold=True, color="276221")
-                elif leap_val == "Likely": cell.fill = likely_f; cell.font = Font(name="Arial", size=10, bold=True, color="7D5A00")
-                else:                      cell.fill = no_f
-        ws.row_dimensions[idx].height = 55
-
-    for idx in range(2, ws.max_row + 1):
-        cell = ws.cell(row=idx, column=3)
-        if (cell.value or "").startswith("http"):
-            cell.hyperlink = cell.value
-            cell.font = Font(name="Arial", size=10, color="0563C1", underline="single")
-
-    # Summary sheet
-    ws2 = wb.create_sheet("Summary")
-    total = len(df)
-    for r in [
-        ["LEAP Publication Scrape Summary", ""],
-        ["Generated",   datetime.now().strftime("%Y-%m-%d %H:%M")],
-        ["Start Date",  START_DATE.strftime("%B %d, %Y")],
-        ["NSF Award",   f"#{NSF_AWARD}"],
-        ["", ""],
-        ["Total Publications",                         total],
-        ["LEAP Explicitly Acknowledged (Yes)",         (df["LEAP Funding Acknowledged?"]=="Yes").sum()],
-        ["Likely LEAP – author match (Likely)",        (df["LEAP Funding Acknowledged?"]=="Likely").sum()],
-        ["No LEAP Signal – manual review needed (No)", (df["LEAP Funding Acknowledged?"]=="No").sum()],
-    ]:
-        ws2.append(r)
-    ws2.column_dimensions["A"].width = 48
-    ws2.column_dimensions["B"].width = 20
-    ws2["A1"].font = Font(bold=True, size=14, name="Arial", color=HEADER_COLOR)
-
-    wb.save(filepath)
-    print(f"\n  Saved {total} publications to {filepath}")
-    return total
-
+def write_csv(rows, gcs_path):
+    import gcsfs
+    export = [{c: r.get(c, "") for c in EXPORT_COLS} for r in rows]
+    df     = pd.DataFrame(export, columns=EXPORT_COLS)
+    fs     = gcsfs.GCSFileSystem()
+    with fs.open(gcs_path, "w") as f:
+        df.to_csv(f, index=False)
+    print(f"\n  Saved {len(df)} publications to {gcs_path}")
+    return len(df)
 
 # ─── MAIN ──────────────────────────────────────────────────────────────────────
 
 def main():
     print("=" * 62)
-    print("  LEAP Publication Scraper  v2.0")
+    print("  LEAP Publication Scraper  v4.0")
     print(f"  NSF Award #{NSF_AWARD}  |  From: {START_DATE.strftime('%B %d, %Y')}")
     print("=" * 62)
 
@@ -1020,24 +953,19 @@ def main():
     lastnames  = {s["name"].strip().split()[-1].lower() for s in scientists}
     all_rows   = []
 
-    # 1 ── OpenAlex keyword
     print(f"\n[1/6] OpenAlex keyword search ({len(LEAP_KEYWORDS)} queries)...")
     for kw in LEAP_KEYWORDS:
         all_rows.extend(openalex_keyword(kw, lastnames))
         time.sleep(0.5)
 
-    # 2 ── OpenAlex author
     print(f"\n[2/6] OpenAlex author search ({len(scientists)} scientists)...")
     for sci in scientists:
         all_rows.extend(openalex_author(sci, lastnames))
 
-    # 3 ── CrossRef / NSF funder
     print(f"\n[3/6] CrossRef – NSF funder award #{NSF_AWARD}...")
     all_rows.extend(crossref_funder(lastnames))
 
-    # 4 ── NASA ADS
-    ads_enabled = bool(ADS_API_TOKEN)
-    if ads_enabled:
+    if ADS_API_TOKEN:
         print(f"\n[4/6] NASA ADS keyword search ({len(ADS_QUERIES)} queries)...")
         for q in ADS_QUERIES:
             all_rows.extend(ads_query(q, lastnames))
@@ -1047,35 +975,26 @@ def main():
             all_rows.extend(ads_author(sci, lastnames))
     else:
         print(f"\n[4/6] NASA ADS – SKIPPED (no ADS_API_TOKEN set)")
-        print("      Get a free token at: https://ui.adsabs.harvard.edu/user/settings/token")
-        print("      Then run:  export ADS_API_TOKEN=your_token")
 
-    # 5 ── ORCID
     orcid_scientists = [s for s in scientists if s.get("orcid")]
     print(f"\n[5/6] ORCID – {len(orcid_scientists)} scientists with ORCID IDs...")
     for sci in orcid_scientists:
         all_rows.extend(orcid_works(sci, lastnames))
 
-    # 6 ── arXiv
     print(f"\n[6/6] arXiv keyword + author search...")
     for q in ARXIV_QUERIES:
         all_rows.extend(arxiv_search(q, lastnames))
     for sci in scientists:
         all_rows.extend(arxiv_author(sci, lastnames))
 
-    # Bonus ── Semantic Scholar
     print(f"\n[Bonus] Semantic Scholar supplementary search...")
     for kw in LEAP_KEYWORDS[:2]:
         all_rows.extend(semantic_scholar(kw, lastnames))
 
-    # Dedup + sort
     print(f"\nRaw results:         {len(all_rows)}")
     deduped = deduplicate(all_rows)
     print(f"After deduplication: {len(deduped)}")
 
-    # ── Full-text acknowledgment verification ─────────────────────────────────
-    # Fetches full text for every "Likely" and "No" paper and upgrades to "Yes"
-    # if LEAP / award #2019625 is found in the acknowledgments section.
     deduped = run_fulltext_verification(deduped)
 
     priority = {"Yes": 0, "Likely": 1, "No": 2}
@@ -1085,18 +1004,7 @@ def main():
         r["Last Name"].lower()
     ))
 
-    write_excel(deduped, OUTPUT_FILE)
-    subprocess.run(["gsutil", "cp", OUTPUT_FILE,
-                    "gs://leap-persistent/publications/LEAP_Publications.xlsx"], check=True)
-
-    print("\nColumn legend:")
-    print("  Green  (Yes)    – LEAP / NSF #2019625 confirmed in full text OR metadata")
-    print("  Yellow (Likely) – known LEAP scientist; full text unavailable/paywalled")
-    print("  Red    (No)     – no LEAP signal anywhere; manual review recommended")
-    print(f"\nTo add/remove scientists: edit {SCIENTISTS_FILE}")
-    print("To enable NASA ADS:       export ADS_API_TOKEN=<your_token>")
-    print("To limit full-text checks: set FULLTEXT_MAX = 100 (currently:", FULLTEXT_MAX, ")")
-
+    write_csv(deduped, OUTPUT_PATH)
 
 if __name__ == "__main__":
     main()
