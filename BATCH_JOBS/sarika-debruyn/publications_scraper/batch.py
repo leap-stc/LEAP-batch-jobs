@@ -1099,13 +1099,4 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
-        with ResourceMonitor():     # logs CPU/RAM/network every 30s
-            with ProgressLogger():  # logs dask task progress every 30s
-                main()
-        notify_slack("my_project finished: gs://leap-scratch/me/output.zarr")
-    except Exception:
-        import traceback
-        traceback.print_exc()
-        notify_slack("my_project failed — check the logs")
-        raise
+    main()
