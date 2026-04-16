@@ -1,20 +1,18 @@
-import argparse
-import gzip
-import logging
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
-from pathlib import Path
-from threading import Lock
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "boto3",
+#     "cfgrib",
+#     "xarray",
+#     "pandas",
+#     "numpy",
+#     "eccodes",
+#     "gcsfs",
+#     "pyarrow",
+#     "botocore",
+# ]
+# ///
 
-import boto3
-import cfgrib
-import gcsfs
-import numpy as np
-import pandas as pd
-import xarray as xr
-from botocore import UNSIGNED
-from botocore.config import Config
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -92,7 +90,6 @@ def download_and_parse_one(key: str, total: int):
             raw = gzip.decompress(raw)
 
         # Each thread writes to its own tmp file using thread id
-        import threading
         tid      = threading.get_ident()
         tmp_path = Path(f"/tmp/mrms_tmp_{tid}.grib2")
         tmp_path.write_bytes(raw)
