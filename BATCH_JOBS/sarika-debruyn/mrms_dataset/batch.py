@@ -1,28 +1,36 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "requests",
+#     "boto3",
+#     "cfgrib",
+#     "xarray",
+#     "gcsfs",
+#     "numpy",
 #     "pandas",
-#     "openpyxl",
-#     "python-dotenv",
-#     "pdfplumber",
+#     "botocore",
 # ]
 # ///
-
-import os
-import re
-import io
-import time
+ 
+import argparse
+import gzip
 import logging
-import xml.etree.ElementTree as ET
-from datetime import datetime, date
-import requests
+import os
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
+from pathlib import Path
+from threading import Lock
+ 
+import boto3
+import cfgrib
+import gcsfs
+import numpy as np
 import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from dotenv import load_dotenv
-
-
+import xarray as xr
+from botocore import UNSIGNED
+from botocore.config import Config
+ 
 # ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -30,7 +38,6 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger(__name__)
-
 # ── NYC bounding box ───────────────────────────────────────────────────────────
 NYC_LAT_MIN = 40.45
 NYC_LAT_MAX = 40.95
