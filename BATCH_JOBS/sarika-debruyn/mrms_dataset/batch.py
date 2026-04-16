@@ -1,17 +1,26 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "boto3",
-#     "cfgrib",
-#     "xarray",
+#     "requests",
 #     "pandas",
-#     "numpy",
-#     "eccodes",
-#     "gcsfs",
-#     "pyarrow",
-#     "botocore",
+#     "openpyxl",
+#     "python-dotenv",
+#     "pdfplumber",
 # ]
 # ///
+
+import os
+import re
+import io
+import time
+import logging
+import xml.etree.ElementTree as ET
+from datetime import datetime, date
+import requests
+import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from dotenv import load_dotenv
 
 
 # ── Logging ────────────────────────────────────────────────────────────────────
