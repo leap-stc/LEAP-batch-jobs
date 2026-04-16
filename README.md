@@ -57,7 +57,7 @@ if __name__ == "__main__":
 ```
 
 **Tips:**
-- Write outputs to `gs://leap-scratch/<your_username>/` or `gs://leap-persistent/` as appropriate
+- Write outputs to `gs://leap-scratch/<your_username>/` or `gs://leap-persistent/` as appropriate. You can find more information on how to write directly to GCS [here](https://leap-stc.github.io/data/data_tools/#writing-to-gcs)
 - GCP credentials are provided automatically by the VM — no need to manage tokens
 - If you use `obstore` for direct GCS access (faster for large reads), import `gcp_credential_provider` from `leap_batch_jobs.gcs` to handle credentials correctly on the cluster
 
