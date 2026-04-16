@@ -1,0 +1,20 @@
+name: mrms_dataset
+
+resources:
+  cloud: gcp
+  region: us-central1
+  instance_type: n4-standard-4
+  use_spot: false
+
+workdir: .
+
+envs:
+  OUTPUT_PATH: "gs://leap-persistent/sarika/nyc_flooding/mrms"
+
+setup: |
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+
+run: |
+  set -e
+  source $HOME/.local/bin/env
+  PYTHONUNBUFFERED=1 uv run batch.py
