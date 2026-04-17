@@ -47,6 +47,7 @@ NYC_LON_MAX = -73.65
 # ── GCS output path ────────────────────────────────────────────────────────────
 GCS_BUCKET = "leap-persistent"
 GCS_PREFIX = "sarika/nyc_flooding/mrms"
+OUTPUT_PATH = f"gs://{GCS_BUCKET}/{GCS_PREFIX}"
 
 # ── S3 config ──────────────────────────────────────────────────────────────────
 S3_BUCKET = "noaa-mrms-pds"
