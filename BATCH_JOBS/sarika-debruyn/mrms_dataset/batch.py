@@ -86,7 +86,7 @@ def list_mrms_keys(date) -> list:
 def parse_timestamp_from_key(key: str) -> pd.Timestamp:
     fname  = Path(key).name
     dt_str = fname.split("_")[-1].split(".grib2")[0]
-    return pd.Timestamp.strptime(dt_str, "%Y%m%d-%H%M%S").tz_localize("UTC")
+    return pd.to_datetime(dt_str, format="%Y%m%d-%H%M%S").tz_localize("UTC")
 
 
 def download_and_parse_one(key: str, total: int):
