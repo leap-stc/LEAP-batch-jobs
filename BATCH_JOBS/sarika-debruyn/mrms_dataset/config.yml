@@ -17,4 +17,4 @@ setup: |
 run: |
   set -e
   source $HOME/.local/bin/env
-  PYTHONUNBUFFERED=1 uv run batch.py
+  PYTHONUNBUFFERED=1 uv run batch.py --start 2020-09-01 --end 2026-03-13 --workers 16
