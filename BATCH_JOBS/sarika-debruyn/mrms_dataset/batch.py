@@ -46,11 +46,12 @@ NYC_LON_MAX = -73.65
 
 # ── GCS output path ────────────────────────────────────────────────────────────
 GCS_BUCKET = "leap-persistent"
-GCS_PREFIX = "nyc_flooding/mrms"
+GCS_PREFIX = "sarika/nyc_flooding/mrms"
+OUTPUT_PATH = f"gs://{GCS_BUCKET}/{GCS_PREFIX}" #remove when doing skylink batch jobs
 
 # ── S3 config ──────────────────────────────────────────────────────────────────
 S3_BUCKET = "noaa-mrms-pds"
-S3_PREFIX = "PrecipRate"
+S3_PREFIX = "CONUS/PrecipRate_00.00"
 S3_REGION = "us-east-1"
 
 # Thread-safe counter for progress reporting
@@ -159,13 +160,20 @@ def download_and_parse_one(key: str, total: int):
 def interpolate_to_1min(da: xr.DataArray) -> xr.DataArray:
     t_start   = pd.Timestamp(da.time.values[0])
     t_end     = pd.Timestamp(da.time.values[-1])
-    new_times = pd.date_range(start=t_start, end=t_end, freq="1min")
-
-    return da.interp(
+    
+    # xarray interp doesn't support tz-aware timestamps — use naive UTC
+    new_times = pd.date_range(start=t_start, end=t_end, freq="1min").tz_localize(None)
+    
+    # Strip tz from the DataArray's time coordinate before interpolating
+    da = da.assign_coords(time=da.time.values.astype("datetime64[ns]"))
+    
+    interpolated = da.interp(
         time=new_times,
         method="linear",
         kwargs={"fill_value": np.nan},
     )
+    
+    return interpolated
 
 
 def gcs_file_exists(fs, gcs_path: str) -> bool:
@@ -177,14 +185,14 @@ def gcs_file_exists(fs, gcs_path: str) -> bool:
 
 def process_one_day(date, fs, n_workers: int) -> bool:
     global _progress_count
-    _progress_count = 0  # reset for each day
+    _progress_count = 0
 
     fname    = f"mrms_nyc_1min_{date.strftime('%Y%m%d')}.csv"
-    gcs_path = f"{GCS_BUCKET}/{GCS_PREFIX}/{fname}"
+    gcs_path = f"{OUTPUT_PATH}/{fname}"
 
-    # Skip if already written — safe to resume
+    # Skip if already written — safe to resume after interruption
     if gcs_file_exists(fs, gcs_path):
-        log.info(f"  SKIP {date} — already exists at gs://{gcs_path}")
+        log.info(f"  SKIP {date} — already exists at {gcs_path}")
         return True
 
     log.info(f"── {date} ─────────────────────────────────────────────")
@@ -215,33 +223,61 @@ def process_one_day(date, fs, n_workers: int) -> bool:
 
     log.info(f"  Downloaded {len(results)}/{len(keys)} files in {time.time()-t0:.0f}s")
 
-    # Sort by timestamp and stack
-    log.info(f"  Stacking and interpolating ...")
-    sorted_das = [
-        results[ts].expand_dims(time=[ts])
-        for ts in sorted(results.keys())
-    ]
-    stacked = xr.concat(sorted_das, dim="time")
-    del results, sorted_das
+    # ── Stack ──────────────────────────────────────────────────────────────────
+    try:
+        log.info(f"  Stacking {len(results)} snapshots ...")
+        sorted_das = [
+            results[ts].expand_dims(time=[ts])
+            for ts in sorted(results.keys())
+        ]
+        stacked = xr.concat(sorted_das, dim="time", coords="minimal", compat="override")
+        del results, sorted_das
+    except Exception as e:
+        log.error(f"  Stacking failed: {e}")
+        return False
 
-    interpolated = interpolate_to_1min(stacked)
-    del stacked
+    # ── Interpolate ────────────────────────────────────────────────────────────
+    try:
+        log.info(f"  Interpolating 2-min → 1-min ...")
+        interpolated = interpolate_to_1min(stacked)
+        del stacked
+    except Exception as e:
+        log.error(f"  Interpolation failed: {e}")
+        return False
 
-    df = (
-        interpolated.to_dataframe(name="precip_rate_mmhr")
-                    .reset_index()
-                    [["time", "latitude", "longitude", "precip_rate_mmhr"]]
-    )
-    del interpolated
+    # ── Convert to DataFrame ───────────────────────────────────────────────────
+    try:
+        log.info(f"  Converting to DataFrame ...")
+        df = (
+            interpolated.to_dataframe(name="precip_rate_mmhr")
+                        .reset_index()
+                        [["time", "latitude", "longitude", "precip_rate_mmhr"]]
+        )
+        del interpolated
+        df = df.dropna(subset=["precip_rate_mmhr"])
+        log.info(f"  DataFrame shape: {df.shape}")
+    except Exception as e:
+        log.error(f"  DataFrame conversion failed: {e}")
+        return False
 
-    df = df.dropna(subset=["precip_rate_mmhr"])
-
-    log.info(f"  Writing {len(df):,} rows → gs://{gcs_path} ...")
-    with fs.open(gcs_path, "w") as f:
-        df.to_csv(f, index=False)
-
+    # ── Write to GCS ───────────────────────────────────────────────────────────
     elapsed = time.time() - t0
-    log.info(f"  Done in {elapsed:.0f}s — {len(df):,} rows")
+    log.info(f"  Writing {len(df):,} rows → {gcs_path} ...")
+    try:
+        with fs.open(gcs_path, "w") as f:
+            df.to_csv(f, index=False)
+        log.info(f"  Done in {elapsed:.0f}s — {len(df):,} rows saved to GCS")
+    except Exception as e:
+        log.error(f"  GCS write failed: {e}")
+        # Save locally as fallback so you don't lose the data
+        local_path = f"/tmp/{fname}"
+        try:
+            df.to_csv(local_path, index=False)
+            log.info(f"  Saved locally as fallback: {local_path}")
+        except Exception as e2:
+            log.error(f"  Local fallback also failed: {e2}")
+        return False
+
     del df
     return True
 
