@@ -9,7 +9,7 @@ resources:
 workdir: .
 
 envs:
-  OUTPUT_PATH: "gs://leap-persistent/sarika/nyc_flooding/mrms"
+  OUTPUT_PATH: "gs://leap-persistent/nyc_flooding/mrms"
 
 setup: |
   curl -LsSf https://astral.sh/uv/install.sh | sh
