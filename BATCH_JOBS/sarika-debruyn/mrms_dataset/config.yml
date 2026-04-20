@@ -1,20 +1,22 @@
 name: mrms-pipeline
- 
+
 resources:
   cloud: gcp
-  region: us-east1          # close to noaa-mrms-pds (AWS us-east-1) — minimises S3 latency
-  instance_type: n4-highmem-16   # 16 vCPUs, 128 GB RAM — needed for in-memory daily xarray cube
+  region: us-east1
+  instance_type: n4-highmem-16
   use_spot: false
- 
-workdir: .   # uploads current folder (pipeline script) to the remote VM
- 
+
+workdir: .
+
 envs:
-  OUTPUT_PATH: "gs://leap-persistent/sarika/nyc_flooding/mrms"
+  START_DATE: "2020-10-01"
+  END_DATE: "2026-04-20"
+  WORKERS: "64"
 
 setup: |
   curl -LsSf https://astral.sh/uv/install.sh | sh
- 
+
 run: |
   set -e
   source $HOME/.local/bin/env
-  PYTHONUNBUFFERED=1 uv run batch.py --start 2020-09-01 --end 2026-03-13 --workers 16
+  PYTHONUNBUFFERED=1 uv run batch.py

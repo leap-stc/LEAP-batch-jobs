@@ -17,31 +17,31 @@ MRMS PrecipRate pipeline
 ========================
 - Pulls MRMS_PrecipRate_00.00 from s3://noaa-mrms-pds (available from ~Oct 2020)
 - Clips to NYC bounding box (full 1 km spatial grid preserved, no sensor matching)
-- Interpolates 2-min native cadence → 1-min timestamps (linear)
-- Writes one CSV per day:  gs://leap-persistent/nyc_flooding/mrms/mrms_nyc_1min_YYYYMMDD.csv
+- Interpolates 2-min native cadence -> 1-min timestamps (linear)
+- Writes one CSV per day: gs://leap-persistent/nyc_flooding/mrms/mrms_nyc_1min_YYYYMMDD.csv
   Columns: time, latitude, longitude, precip_rate_mmhr
 - Resume-safe: skips days whose output file already exists in GCS
 - Uses Dask for parallel stacking/interpolation of the daily xarray cube
 
-Usage:
-    python mrms_aggregation_pipeline.py --start 2020-10-01 --end 2026-04-20
-    python mrms_aggregation_pipeline.py --start 2020-10-01 --end 2026-04-20 --workers 32
+Parameters are read from environment variables (set defaults in config.yml):
+  START_DATE : start date YYYY-MM-DD (default: 2020-10-01)
+  END_DATE   : end date   YYYY-MM-DD (default: today)
+  WORKERS    : parallel S3 download threads per day (default: 16)
 """
 
-import argparse
 import gzip
 import logging
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from threading import Lock
 
 import boto3
 import cfgrib
 import dask
-import dask.array as da
 import gcsfs
 import numpy as np
 import pandas as pd
@@ -57,6 +57,11 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+# ── Parameters from environment variables ─────────────────────────────────────
+START_DATE = os.environ.get("START_DATE", "2020-10-01")
+END_DATE   = os.environ.get("END_DATE",   date.today().strftime("%Y-%m-%d"))
+WORKERS    = int(os.environ.get("WORKERS", "16"))
+
 # ── NYC bounding box ───────────────────────────────────────────────────────────
 NYC_LAT_MIN = 40.45
 NYC_LAT_MAX = 40.95
@@ -64,8 +69,8 @@ NYC_LON_MIN = -74.30
 NYC_LON_MAX = -73.65
 
 # ── GCS output ─────────────────────────────────────────────────────────────────
-GCS_BUCKET = "leap-persistent"
-GCS_PREFIX = "nyc_flooding/mrms"
+GCS_BUCKET  = "leap-persistent"
+GCS_PREFIX  = "nyc_flooding/mrms"
 OUTPUT_PATH = f"gs://{GCS_BUCKET}/{GCS_PREFIX}"
 
 # ── S3 source ──────────────────────────────────────────────────────────────────
@@ -74,7 +79,7 @@ S3_PREFIX = "CONUS/PrecipRate_00.00"
 S3_REGION = "us-east-1"
 
 # ── Thread-safe download counter ───────────────────────────────────────────────
-_progress_lock = Lock()
+_progress_lock  = Lock()
 _progress_count = 0
 
 
@@ -94,7 +99,7 @@ def make_s3_client():
 def list_mrms_keys(date) -> list:
     client = make_s3_client()
     prefix = f"{S3_PREFIX}/{date.strftime('%Y%m%d')}/"
-    keys = []
+    keys   = []
     paginator = client.get_paginator("list_objects_v2")
     for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=prefix):
         for obj in page.get("Contents", []):
@@ -116,7 +121,7 @@ def parse_timestamp_from_key(key: str) -> pd.Timestamp:
 
 def download_and_parse_one(key: str, total: int):
     """
-    Download → decompress → parse → clip one GRIB2 file.
+    Download -> decompress -> parse -> clip one GRIB2 file.
     Returns (timestamp, DataArray clipped to NYC) or None on failure.
     Thread-safe: each call owns its own S3 client and tmp file.
     """
@@ -182,8 +187,7 @@ def download_and_parse_one(key: str, total: int):
 def interpolate_to_1min(stacked: xr.DataArray) -> xr.DataArray:
     """
     Upsample from native 2-min MRMS cadence to 1-min timestamps via linear
-    interpolation. Chunks along time so Dask can parallelise across the
-    spatial cube.
+    interpolation. Chunks along time so Dask parallelises across the spatial cube.
     """
     t_start = pd.Timestamp(stacked.time.values[0])
     t_end   = pd.Timestamp(stacked.time.values[-1])
@@ -284,7 +288,7 @@ def process_one_day(date, fs, n_workers: int) -> bool:
         log.error(f"  Stacking failed: {exc}")
         return False
 
-    # ── 4. Interpolate 2-min → 1-min (Dask-backed) ───────────────────────────
+    # ── 4. Interpolate 2-min -> 1-min (Dask-backed) ───────────────────────────
     print(f"  Interpolating to 1-min timestamps (Dask) ...", flush=True)
     try:
         interpolated = interpolate_to_1min(stacked)
@@ -344,28 +348,17 @@ def process_one_day(date, fs, n_workers: int) -> bool:
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(
-        description=(
-            "Convert MRMS PrecipRate GRIB2 to NYC-clipped 1-min CSV on GCS.\n"
-            "Preserves full 1 km spatial grid (no sensor matching).\n"
-            "S3 archive starts ~2020-10-01."
-        )
-    )
-    parser.add_argument("--start",   required=True, help="Start date YYYY-MM-DD (UTC)")
-    parser.add_argument("--end",     required=True, help="End date   YYYY-MM-DD (UTC)")
-    parser.add_argument("--workers", type=int, default=16,
-                        help="Parallel S3 download threads per day (default: 16)")
-    args = parser.parse_args()
+    start     = datetime.strptime(START_DATE, "%Y-%m-%d").date()
+    end       = datetime.strptime(END_DATE,   "%Y-%m-%d").date()
+    n_workers = WORKERS
 
-    start = datetime.strptime(args.start, "%Y-%m-%d").date()
-    end   = datetime.strptime(args.end,   "%Y-%m-%d").date()
     date_range = [start + timedelta(days=i) for i in range((end - start).days + 1)]
-    n_days = len(date_range)
+    n_days     = len(date_range)
 
     print("=" * 60, flush=True)
     print(f"  MRMS NYC pipeline", flush=True)
     print(f"  Date range : {start} -> {end}  ({n_days} days)", flush=True)
-    print(f"  Workers    : {args.workers} download threads/day", flush=True)
+    print(f"  Workers    : {n_workers} download threads/day", flush=True)
     print(f"  GCS output : gs://{GCS_BUCKET}/{GCS_PREFIX}/mrms_nyc_1min_YYYYMMDD.csv", flush=True)
     print(f"  Spatial    : NYC bbox, full 1 km grid, no sensor matching", flush=True)
     print(f"  Temporal   : 2-min MRMS -> 1-min linear interpolation", flush=True)
@@ -379,7 +372,6 @@ def main():
         print(f"  GCS auth OK: gs://{GCS_BUCKET}/ accessible", flush=True)
     except Exception as exc:
         log.error(f"GCS access failed: {exc}")
-        log.error("Run: gcloud auth application-default login")
         return
 
     succeeded, failed = 0, 0
@@ -387,7 +379,7 @@ def main():
 
     for i, date in enumerate(date_range, 1):
         print(f"\n[{i}/{n_days}]", flush=True)
-        ok = process_one_day(date, fs, args.workers)
+        ok = process_one_day(date, fs, n_workers)
         if ok:
             succeeded += 1
         else:
