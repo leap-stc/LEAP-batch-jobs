@@ -9,6 +9,8 @@
 #     "pandas",
 #     "botocore",
 #     "dask[array]",
+#     "dask[distributed]",
+#     "scipy",
 # ]
 # ///
 
