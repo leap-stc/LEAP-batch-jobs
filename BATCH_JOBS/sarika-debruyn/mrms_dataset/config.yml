@@ -10,7 +10,7 @@ workdir: .
 
 envs:
   START_DATE: "2024-01-01"
-  END_DATE: "2025-04-01"
+  END_DATE: "2025-01-01"
   WORKERS: "64"
 
 setup: |
