@@ -1,16 +1,12 @@
-name: leap_publications
+name: mrms-floodnet-join
 
 resources:
   cloud: gcp
   region: us-central1
-  instance_type: n4-standard-4
+  instance_type: n4-highmem-16  # 16 vCPU, 128 GB RAM — needed for large in-memory merge
   use_spot: false
 
-workdir: .
-
-envs:
-  ADS_API_TOKEN: ""
-  OUTPUT_PATH: "gs://leap-persistent/publications/LEAP_Publications.xlsx"
+workdir: .  # uploads batch.py and any local files to the VM
 
 setup: |
   curl -LsSf https://astral.sh/uv/install.sh | sh
