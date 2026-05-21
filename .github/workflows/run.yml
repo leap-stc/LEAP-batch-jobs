@@ -60,6 +60,9 @@ jobs:
         env:
           SKYPILOT_API_URL: ${{ vars.SKYPILOT_API_URL }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          OSN_ACCESS_KEY_INBOX: ${{ secrets.OSN_ACCESS_KEY_INBOX }}
+          OSN_SECRET_KEY_INBOX: ${{ secrets.OSN_SECRET_KEY_INBOX }}
+          OSN_ENDPOINT: ${{ secrets.OSN_ENDPOINT }}
           INPUT_JOB: ${{ inputs.job }}
           INPUT_INSTANCE_TYPE: ${{ inputs.instance_type }}
           INPUT_DISK_SIZE_GB: ${{ inputs.disk_size_gb }}
@@ -74,7 +77,10 @@ jobs:
           for pair in $INPUT_JOB_ENV; do
             LAUNCH_ARGS+=(--env "$pair")
           done
-          [[ -n "$SLACK_WEBHOOK_URL" ]] && LAUNCH_ARGS+=(--env "SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL")
+          [[ -n "$SLACK_WEBHOOK_URL" ]] && LAUNCH_ARGS+=(--env "SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
+          [[ -n "$OSN_ACCESS_KEY_INBOX" ]] && LAUNCH_ARGS+=(--env "OSN_ACCESS_KEY_INBOX=$OSN_ACCESS_KEY_INBOX")
+          [[ -n "$OSN_SECRET_KEY_INBOX" ]] && LAUNCH_ARGS+=(--env "OSN_SECRET_KEY_INBOX=$OSN_SECRET_KEY_INBOX")
+          [[ -n "$OSN_ENDPOINT" ]] && LAUNCH_ARGS+=(--env "OSN_ENDPOINT=$OSN_ENDPOINT")
 
           cd "$INPUT_JOB"
           LAUNCH_OUTPUT=$(uv run sky jobs launch "${LAUNCH_ARGS[@]}" config.yml 2>&1)
