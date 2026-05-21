@@ -77,7 +77,7 @@ jobs:
           for pair in $INPUT_JOB_ENV; do
             LAUNCH_ARGS+=(--env "$pair")
           done
-          [[ -n "$SLACK_WEBHOOK_URL" ]] && LAUNCH_ARGS+=(--env "SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
+          [[ -n "$SLACK_WEBHOOK_URL" ]] && LAUNCH_ARGS+=(--env "SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL")
           [[ -n "$OSN_ACCESS_KEY_INBOX" ]] && LAUNCH_ARGS+=(--env "OSN_ACCESS_KEY_INBOX=$OSN_ACCESS_KEY_INBOX")
           [[ -n "$OSN_SECRET_KEY_INBOX" ]] && LAUNCH_ARGS+=(--env "OSN_SECRET_KEY_INBOX=$OSN_SECRET_KEY_INBOX")
           [[ -n "$OSN_ENDPOINT" ]] && LAUNCH_ARGS+=(--env "OSN_ENDPOINT=$OSN_ENDPOINT")
