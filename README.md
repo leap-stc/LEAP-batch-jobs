@@ -163,7 +163,7 @@ After dispatch, the GitHub Actions summary shows:
 - A command to **stream logs** from your terminal:
 
 ```bash
-pip install skypilot
+uv tool install "skypilot[gcp]"
 sky api login -e <SKYPILOT_API_URL>
 sky jobs logs --name <job-name>
 ```
@@ -176,7 +176,7 @@ The job name follows the pattern `<project_name>-<github_actor>-<run_id>`.
 
 If you need to cancel a running or queued job, connect to the API server first (see Monitoring your job above for how to get the URL and run `sky api login`)
 
-The cancel by job ID:
+Then cancel by job ID:
 `sky jobs cancel <job_id> # ex: sky jobs cancel 14`
 
 ---
