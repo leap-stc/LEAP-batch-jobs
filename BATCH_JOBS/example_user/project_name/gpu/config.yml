@@ -16,3 +16,4 @@ run: |
   set -e
   source $HOME/.local/bin/env
   PYTHONUNBUFFERED=1 uv run batch.py
+

@@ -4,7 +4,7 @@ Run batch Python jobs on GCP via [SkyPilot](https://docs.skypilot.co) and GitHub
 
 ## How it works
 
-1. You write a `batch.py` and a `config.yml` in a `cpu/` or `gpu/` subfolder under `BATCH_JOBS/<username>/<project>/`
+1. You write a `batch.py` and a `config.yml` in a `cpu/` or `gpu/` subfolder under `BATCH_JOBS/example_user/project_name/`
 2. You open a pull request with that folder
 3. A maintainer reviews and merges it
 4. The maintainer (or you, if you have write access) triggers the job from the **Actions** tab using **Run Batch Job**
@@ -26,7 +26,7 @@ Run batch Python jobs on GCP via [SkyPilot](https://docs.skypilot.co) and GitHub
 Fork this repo (or create a branch if you have write access), then create a subfolder for the job type you want to run:
 
 ```
-BATCH_JOBS/<your_github_username>/<project_name>/cpu/   # CPU-only job
+BATCH_JOBS/<your_github_username>/<project_name>/cpu/  # CPU-only job
 BATCH_JOBS/<your_github_username>/<project_name>/gpu/   # GPU job
 ```
 
