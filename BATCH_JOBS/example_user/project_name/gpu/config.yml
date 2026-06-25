@@ -3,9 +3,10 @@ name: project_name_gpu
 resources:
   cloud: gcp
   region: us-central1
-  instance_type: n1-standard-8
+  instance_type: n1-highmem-4
   accelerators: T4:1
   use_spot: true
+  disk_size: 100
 
 workdir: .
 
