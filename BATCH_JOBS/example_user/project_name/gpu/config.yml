@@ -1,0 +1,18 @@
+name: project_name_gpu
+
+resources:
+  cloud: gcp
+  region: us-central1
+  instance_type: n1-standard-8
+  accelerators: T4:1
+  use_spot: true
+
+workdir: .
+
+setup: |
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+
+run: |
+  set -e
+  source $HOME/.local/bin/env
+  PYTHONUNBUFFERED=1 uv run batch.py

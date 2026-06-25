@@ -1,0 +1,36 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "leap-batch-jobs @ git+https://github.com/leap-stc/LEAP-batch-jobs.git",
+#   "torch",
+# ]
+# ///
+
+import sys
+
+import torch
+
+from leap_batch_jobs.monitoring import ResourceMonitor, notify_slack
+
+
+def main():
+    if not torch.cuda.is_available():
+        print("ERROR: No CUDA-capable GPU detected. This script requires a GPU.")
+        sys.exit(1)
+    device_name = torch.cuda.get_device_name(0)
+    vram_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3
+    print(f"GPU: {device_name} ({vram_gb:.1f} GB VRAM)")
+
+    # TODO: add your GPU workload here
+
+
+if __name__ == "__main__":
+    try:
+        with ResourceMonitor():
+            main()
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+        notify_slack("project_name failed — check the logs")
+        raise

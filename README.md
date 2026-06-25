@@ -4,7 +4,7 @@ Run batch Python jobs on GCP via [SkyPilot](https://docs.skypilot.co) and GitHub
 
 ## How it works
 
-1. You write a `batch.py` and a `config.yml` in a folder under `BATCH_JOBS/`
+1. You write a `batch.py` and a `config.yml` in a `cpu/` or `gpu/` subfolder under `BATCH_JOBS/<username>/<project>/`
 2. You open a pull request with that folder
 3. A maintainer reviews and merges it
 4. The maintainer (or you, if you have write access) triggers the job from the **Actions** tab using **Run Batch Job**
@@ -23,13 +23,14 @@ Run batch Python jobs on GCP via [SkyPilot](https://docs.skypilot.co) and GitHub
 
 ### 1. Fork and create a branch
 
-Fork this repo (or create a branch if you have write access), then create a folder:
+Fork this repo (or create a branch if you have write access), then create a subfolder for the job type you want to run:
 
 ```
-BATCH_JOBS/<your_github_username>/<project_name>/
+BATCH_JOBS/<your_github_username>/<project_name>/cpu/   # CPU-only job
+BATCH_JOBS/<your_github_username>/<project_name>/gpu/   # GPU job
 ```
 
-For example: `BATCH_JOBS/jsmith/era5_climatology/`
+For example: `BATCH_JOBS/jsmith/era5_climatology/cpu/`
 
 ### 2. Write `batch.py`
 
@@ -114,6 +115,19 @@ run: |
 | `n4-standard-16` | 16 | 64 GB | Parallel compute |
 | `n4-highmem-16` | 16 | 128 GB | Large in-memory datasets |
 | `n4-highmem-32` | 32 | 256 GB | Very large in-memory datasets |
+| `n1-standard-8` + T4 | 8 | 30 GB | GPU jobs — 1x NVIDIA Tesla T4 (16 GB VRAM) |
+| `a2-highgpu-1g` + A100 | 12 | 85 GB | GPU jobs — 1x NVIDIA A100 (40 GB VRAM) |
+
+**GPU jobs** — for jobs that require a GPU, use `accelerators` in your `config.yml` alongside `instance_type`. T4 GPUs attach to N1 machines; A100 GPUs attach to A2 machines. Always set `use_spot: true` for GPU jobs to reduce cost. Example:
+
+```yaml
+resources:
+  cloud: gcp
+  region: us-central1
+  instance_type: n1-standard-8
+  accelerators: T4:1
+  use_spot: true
+```
 
 **Environment variables** — if your script reads parameters from env vars, declare defaults in `config.yml`:
 
@@ -136,7 +150,7 @@ Or override it at dispatch time.
 
 ### 4. Open a pull request
 
-Push your branch and open a PR. The PR should contain only your `BATCH_JOBS/<user>/<project>/` folder. A maintainer will review your script and config before merging.
+Push your branch and open a PR. The PR should contain only your `BATCH_JOBS/<user>/<project>/cpu/` or `BATCH_JOBS/<user>/<project>/gpu/` subfolder. A maintainer will review your script and config before merging.
 
 ---
 
@@ -146,7 +160,7 @@ After the PR is merged, go to **Actions → Run Batch Job → Run workflow**.
 
 | Input | Description |
 |---|---|
-| **job** | Path to the job folder, e.g. `BATCH_JOBS/jsmith/era5_climatology` |
+| **job** | Path to the job subfolder, e.g. `BATCH_JOBS/jsmith/era5_climatology/cpu` |
 | **instance_type** | Override the instance type from `config.yml`, or leave as `from config` |
 | **disk_size_gb** | Attach extra local disk (useful for caching); `none` means no extra disk |
 | **job_env** | Space-separated `KEY=VALUE` pairs to override `envs` in `config.yml`, e.g. `N_YEARS=5 OUTPUT_PATH=gs://...` |
@@ -187,8 +201,12 @@ Then cancel by job ID:
 BATCH_JOBS/
   <github_username>/
     <project_name>/
-      batch.py       # your script
-      config.yml     # SkyPilot task config
+      cpu/
+        batch.py       # your CPU script
+        config.yml     # SkyPilot task config (CPU)
+      gpu/
+        batch.py       # your GPU script
+        config.yml     # SkyPilot task config (GPU)
 
 examples/
   small_job/         # reads a zarr store, computes a climatology
