@@ -1,9 +1,11 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.12,<3.13"
 # dependencies = [
-#   "leap-batch-jobs @ git+https://github.com/leap-stc/LEAP-batch-jobs.git",
 #   "torch",
 # ]
+#
+# [tool.uv]
+# extra-index-url = ["https://download.pytorch.org/whl/cu121"]
 # ///
 
 import sys
