@@ -2,6 +2,7 @@
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
 #   "torch",
+#   "leap-batch-jobs @ git+https://github.com/leap-stc/LEAP-batch-jobs.git",
 # ]
 #
 # [tool.uv]
