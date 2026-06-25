@@ -16,5 +16,7 @@ setup: |
 run: |
   set -e
   source $HOME/.local/bin/env
+  echo "Checking GPU..."
+  nvidia-smi || echo "nvidia-smi not found — no GPU driver installed"
+  echo "Starting batch job"
   PYTHONUNBUFFERED=1 uv run batch.py
-
