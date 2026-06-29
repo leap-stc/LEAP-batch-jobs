@@ -1,0 +1,22 @@
+name: project_name_gpu
+
+resources:
+  cloud: gcp
+  region: us-central1
+  instance_type: n1-highmem-4
+  accelerators: T4:1
+  use_spot: true
+  disk_size: 100
+
+workdir: .
+
+setup: |
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+
+run: |
+  set -e
+  source $HOME/.local/bin/env
+  echo "Checking GPU..."
+  nvidia-smi || echo "nvidia-smi not found — no GPU driver installed"
+  echo "Starting batch job"
+  PYTHONUNBUFFERED=1 uv run batch.py
