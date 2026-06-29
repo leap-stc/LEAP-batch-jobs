@@ -3,10 +3,14 @@ name: project_name_gpu
 resources:
   cloud: gcp
   region: us-central1
-  instance_type: n1-highmem-4
-  accelerators: T4:1
-  use_spot: true
-  disk_size: 100
+  
+  # GPU options (uncomment one):
+  # accelerators: T4:1           # 16GB VRAM, ~$0.26/hr spot
+  # accelerators: A100:1       # 40GB VRAM, ~$0.33/hr spot 
+
+  # Spot VMs save ~60-70% but can be interrupted mid-job.
+  # Set to true only if your script can resume (e.g. checkpointing / skip_existing).
+  use_spot: false 
 
 workdir: .
 
