@@ -33,6 +33,17 @@ on:
           - '200'
           - '500'
 
+      timeout_hours:
+        description: 'Max job runtime in hours. GPU jobs default 8h, CPU 24h. Injected as max_duration into config.'
+        required: true
+        default: '8'
+        type: choice
+        options:
+          - '4'
+          - '8'
+          - '24'
+          - '48'
+
       job_env:
         description: 'Extra env vars to pass to the job (e.g. YEAR=2010 OUTPUT_PATH=gs://...). Overrides defaults in config.yml envs.'
         required: false
@@ -55,6 +66,19 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dispatch
 
+      - name: Validate config
+        env:
+          INPUT_JOB: ${{ inputs.job }}
+        run: |
+          cd "$INPUT_JOB"
+          ACCELERATORS=$(yq '.resources.accelerators // "none"' config.yml)
+          ALLOWED=("T4:1" "A100:1" "none")
+          if [[ ! " ${ALLOWED[*]} " =~ " ${ACCELERATORS} " ]]; then
+            echo "ERROR: accelerators '${ACCELERATORS}' not in allowlist (T4:1, A100:1)"
+            exit 1
+          fi
+          echo "Accelerators: ${ACCELERATORS} — OK"
+
       - name: Submit job
         id: submit
         env:
@@ -66,11 +90,12 @@ jobs:
           INPUT_JOB: ${{ inputs.job }}
           INPUT_INSTANCE_TYPE: ${{ inputs.instance_type }}
           INPUT_DISK_SIZE_GB: ${{ inputs.disk_size_gb }}
+          INPUT_TIMEOUT_HOURS: ${{ inputs.timeout_hours }}
           INPUT_JOB_ENV: ${{ inputs.job_env }}
         run: |
           uv run sky api login -e "$SKYPILOT_API_URL"
 
-          JOB_NAME="$(basename "$INPUT_JOB")-$GITHUB_ACTOR-$GITHUB_RUN_ID"
+          JOB_NAME="$(basename "$(dirname "$INPUT_JOB")")-$(basename "$INPUT_JOB")-$GITHUB_ACTOR-$GITHUB_RUN_ID"
           LAUNCH_ARGS=(-y -n "$JOB_NAME" --async)
           [[ "$INPUT_DISK_SIZE_GB" =~ ^[0-9]+$ ]] && LAUNCH_ARGS+=(--disk-size "$INPUT_DISK_SIZE_GB")
           [[ "$INPUT_INSTANCE_TYPE" != "from config" ]] && LAUNCH_ARGS+=(--instance-type "$INPUT_INSTANCE_TYPE")
@@ -83,6 +108,7 @@ jobs:
           [[ -n "$OSN_ENDPOINT" ]] && LAUNCH_ARGS+=(--env "OSN_ENDPOINT=$OSN_ENDPOINT")
 
           cd "$INPUT_JOB"
+          yq -i ".max_duration = \"${INPUT_TIMEOUT_HOURS}h\"" config.yml
           LAUNCH_OUTPUT=$(uv run sky jobs launch "${LAUNCH_ARGS[@]}" config.yml 2>&1)
           echo "$LAUNCH_OUTPUT"
 
@@ -96,6 +122,7 @@ jobs:
           INPUT_JOB: ${{ inputs.job }}
           INPUT_INSTANCE_TYPE: ${{ inputs.instance_type }}
           INPUT_DISK_SIZE_GB: ${{ inputs.disk_size_gb }}
+          INPUT_TIMEOUT_HOURS: ${{ inputs.timeout_hours }}
           JOB_ID: ${{ steps.submit.outputs.job_id }}
           STEP_OUTCOME: ${{ steps.submit.outcome }}
         run: |
@@ -108,11 +135,12 @@ jobs:
           echo "| Job | \`${INPUT_JOB}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Instance | \`${INPUT_INSTANCE_TYPE}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Disk | \`${INPUT_DISK_SIZE_GB}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Timeout | \`${INPUT_TIMEOUT_HOURS}h\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Job ID | \`${JOB_ID}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Dashboard | ${DASHBOARD} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**Stream logs:**" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
           echo "sky api login -e ${SKYPILOT_API_URL}" >> "$GITHUB_STEP_SUMMARY"
-          echo "sky jobs logs --name $(basename "$INPUT_JOB")-$GITHUB_ACTOR-$GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+          echo "sky jobs logs --name $(basename "$(dirname "$INPUT_JOB")")-$(basename "$INPUT_JOB")-$GITHUB_ACTOR-$GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
