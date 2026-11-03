@@ -52,6 +52,7 @@ on:
 
 jobs:
   run:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
@@ -82,7 +83,8 @@ jobs:
       - name: Submit job
         id: submit
         env:
-          SKYPILOT_API_URL: ${{ vars.SKYPILOT_API_URL }}
+          SKYPILOT_API_URL: ${{ secrets.SKYPILOT_API_URL }}
+          SKYPILOT_SERVICE_ACCOUNT_TOKEN: ${{ secrets.SKYPILOT_SERVICE_ACCOUNT_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           OSN_ACCESS_KEY_INBOX: ${{ secrets.OSN_ACCESS_KEY_INBOX }}
           OSN_SECRET_KEY_INBOX: ${{ secrets.OSN_SECRET_KEY_INBOX }}
@@ -93,7 +95,8 @@ jobs:
           INPUT_TIMEOUT_HOURS: ${{ inputs.timeout_hours }}
           INPUT_JOB_ENV: ${{ inputs.job_env }}
         run: |
-          uv run sky api login -e "$SKYPILOT_API_URL"
+          : "${SKYPILOT_SERVICE_ACCOUNT_TOKEN:?SKYPILOT_SERVICE_ACCOUNT_TOKEN secret is not set}"
+          uv run sky api login -e "$SKYPILOT_API_URL" --token "$SKYPILOT_SERVICE_ACCOUNT_TOKEN"
 
           JOB_NAME="$(basename "$(dirname "$INPUT_JOB")")-$(basename "$INPUT_JOB")-$GITHUB_ACTOR-$GITHUB_RUN_ID"
           LAUNCH_ARGS=(-y -n "$JOB_NAME" --async)
@@ -102,10 +105,10 @@ jobs:
           for pair in $INPUT_JOB_ENV; do
             LAUNCH_ARGS+=(--env "$pair")
           done
-          [[ -n "$SLACK_WEBHOOK_URL" ]] && LAUNCH_ARGS+=(--env "SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL")
-          [[ -n "$OSN_ACCESS_KEY_INBOX" ]] && LAUNCH_ARGS+=(--env "OSN_ACCESS_KEY_INBOX=$OSN_ACCESS_KEY_INBOX")
-          [[ -n "$OSN_SECRET_KEY_INBOX" ]] && LAUNCH_ARGS+=(--env "OSN_SECRET_KEY_INBOX=$OSN_SECRET_KEY_INBOX")
-          [[ -n "$OSN_ENDPOINT" ]] && LAUNCH_ARGS+=(--env "OSN_ENDPOINT=$OSN_ENDPOINT")
+          [[ -n "$SLACK_WEBHOOK_URL" ]] && LAUNCH_ARGS+=(--secret SLACK_WEBHOOK_URL)
+          [[ -n "$OSN_ACCESS_KEY_INBOX" ]] && LAUNCH_ARGS+=(--secret OSN_ACCESS_KEY_INBOX)
+          [[ -n "$OSN_SECRET_KEY_INBOX" ]] && LAUNCH_ARGS+=(--secret OSN_SECRET_KEY_INBOX)
+          [[ -n "$OSN_ENDPOINT" ]] && LAUNCH_ARGS+=(--secret OSN_ENDPOINT)
 
           cd "$INPUT_JOB"
           yq -i ".max_duration = \"${INPUT_TIMEOUT_HOURS}h\"" config.yml
@@ -118,7 +121,6 @@ jobs:
       - name: Summary
         if: always()
         env:
-          SKYPILOT_API_URL: ${{ vars.SKYPILOT_API_URL }}
           INPUT_JOB: ${{ inputs.job }}
           INPUT_INSTANCE_TYPE: ${{ inputs.instance_type }}
           INPUT_DISK_SIZE_GB: ${{ inputs.disk_size_gb }}
@@ -126,7 +128,6 @@ jobs:
           JOB_ID: ${{ steps.submit.outputs.job_id }}
           STEP_OUTCOME: ${{ steps.submit.outcome }}
         run: |
-          DASHBOARD="${SKYPILOT_API_URL}/dashboard"
           if [ "$STEP_OUTCOME" = "success" ]; then
             echo "### Job submitted" >> "$GITHUB_STEP_SUMMARY"
           else
@@ -137,10 +138,5 @@ jobs:
           echo "| Disk | \`${INPUT_DISK_SIZE_GB}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Timeout | \`${INPUT_TIMEOUT_HOURS}h\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Job ID | \`${JOB_ID}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Dashboard | ${DASHBOARD} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Stream logs:**" >> "$GITHUB_STEP_SUMMARY"
-          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "sky api login -e ${SKYPILOT_API_URL}" >> "$GITHUB_STEP_SUMMARY"
-          echo "sky jobs logs --name $(basename "$(dirname "$INPUT_JOB")")-$(basename "$INPUT_JOB")-$GITHUB_ACTOR-$GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
-          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Status and results are posted to Slack." >> "$GITHUB_STEP_SUMMARY"
